@@ -1,0 +1,12 @@
+/* -*- c++ -*- */
+
+#define BURSTFILE_API
+
+%include "gnuradio.i"           // the common stuff
+
+//load generated python docstrings
+%include "burstfile_swig_doc.i"
+
+%{
+%}
+
