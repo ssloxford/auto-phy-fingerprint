@@ -2,14 +2,27 @@ FROM python:3
 
 WORKDIR /code
 
+#avoid questions when installing stuff in apt-get
+ARG DEBIAN_FRONTEND=noninteractive
+
+#install swig
+RUN apt-get install -y swig
+
 #install pip dependencies
-RUN pip3 install numpy pyplot pyModeS
+RUN pip3 install numpy matplotlib pyModeS
+
+#set up pylibmodes
+COPY code/libmodes code/libmodes
+RUN cd code/libmodes && python3 setup.py install
 
 #set up pySDRBurstfile
 COPY code/pySDRBurstfile code/pySDRBurstfile
-RUN cd pySDRBurstfile && python3 setup.py install
+RUN cd code/pySDRBurstfile && python3 setup.py install
 
 COPY code/bursts_to_libmodes.py /code
 CMD ["python3", "bursts_to_libmodes.py"]
+
+
+
 
 
