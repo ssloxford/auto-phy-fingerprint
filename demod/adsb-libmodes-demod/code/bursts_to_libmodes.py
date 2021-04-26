@@ -97,10 +97,6 @@ for (b, bm) in bfr.read():
 		msgtype_counts[res.msgtype] = 1 if res.msgtype not in msgtype_counts else msgtype_counts[res.msgtype] + 1
 		msgtype_successes[res.msgtype] = res.good_message if res.msgtype not in msgtype_successes else msgtype_successes[res.msgtype] + res.good_message
 
-		##print hex of df17 messages with good crcs
-		#if res.msgtype == 17 and res.good_message == 1:
-		#	print(pylibmodes.get_mm_msg(res.mm.msg).hex())
-
 	#extract relevant subsection of burst to save
 	if res.good_message == 1 and res.msgtype == 17:
 		sec_start = res.offset * 2										#2 byte-values per sample
@@ -159,11 +155,13 @@ h5out = h5py.File(outfilename, "w")
 #save for siamese script
 h5out.create_dataset("inds", (h5int_i, 2400, 2), dtype=np.float32)
 h5out.create_dataset("outds", (h5int_i, 1), dtype="S6")
+h5out.create_dataset("meta_datahex", (h5int_i, 1), dtype="S14")
 for h5out_i in range(h5int_i):
 	burst = h5int["bursts_"+str(h5out_i)]
 	h5out["inds"][h5out_i,:,0] = np.real(burst)
 	h5out["inds"][h5out_i,:,1] = np.imag(burst)
 	h5out["outds"][h5out_i,:] = np.string_(pms.icao(h5int["bursts_"+str(h5out_i)].attrs["libmodes_datahex"]))
+	h5out["meta_datahex"][h5out_i,:] = np.string_(h5int["bursts_"+str(h5out_i)].attrs["libmodes_datahex"])
 h5out.close()
 h5int.close()
 
