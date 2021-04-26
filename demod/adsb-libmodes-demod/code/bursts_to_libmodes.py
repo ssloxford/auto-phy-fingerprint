@@ -115,17 +115,6 @@ for (b, bm) in bfr.read():
 		h5int["bursts_"+str(h5int_i)].attrs["libmodes_datahex"] = pylibmodes.get_mm_msg(res.mm.msg).hex()
 		h5int_i += 1
 
-		#print("input: {},{} ({}) -> raw: {},{} ({})".format(sec_start,sec_end,sec_end-sec_start, orig_start, orig_end, orig_end-orig_start))
-		#
-		#y = x[sec_start:sec_end]										#should be 480 bytes long, to become 240 complex samples
-		#y = ((y.astype(np.float32) - 127.0) / 128.0).view(np.complex64)
-		##yz = z[sec_start//2*DECIMATION:sec_end//2*DECIMATION]
-		#yz = z[orig_start:orig_end]
-		#plt.subplot(2,1,1)
-		#plt.plot(np.abs(y))
-		#plt.subplot(2,1,2)
-		#plt.plot(np.abs(yz))
-		#plt.show()
 
 	#do a check whether there are any other messages
 	rest_of_burst = x[res.offset*2+(res.msglen*8*2+16):]
@@ -163,16 +152,9 @@ for mt in msgtype_counts:
 		
 
 
-
 #create final output file with single dataset
 h5int = h5py.File(interfilename, "r")
 h5out = h5py.File(outfilename, "w")
-#save for non-siamese scripts format
-#h5out.create_dataset("bursts", (h5int_i, 2400), dtype=np.complex64)
-#h5out.create_dataset("libmodes_datahex", (h5int_i, 1), dtype="S28")
-#for h5out_i in range(h5int_i):
-#	h5out["bursts"][h5out_i,:] = h5int["bursts_"+str(h5out_i)]
-#	h5out["libmodes_datahex"][h5out_i,:] = np.string_(h5int["bursts_"+str(h5out_i)].attrs["libmodes_datahex"])
 
 #save for siamese script
 h5out.create_dataset("inds", (h5int_i, 2400, 2), dtype=np.float32)
@@ -188,74 +170,3 @@ h5int.close()
 
 #delete the intermediate file
 os.remove(interfilename)
-
-
-#####old code to find as many message as possible in a burst
-#	#find as many bursts as possible
-#	res.preamble_found = 1						#little hack to star the loop (values reset each round)
-#	while len(x) >= 480 and res.preamble_found == 1:		
-#		pylibmodes.mode_s_detectfirst(state, res, x)
-#		if res.processing_error != 0:
-#			raise ValueError("problem!")
-#			
-#		count_pre, count_phase, count_demod_err, count_good = count_pre + res.preamble_found, count_phase + res.phase_corrected, count_demod_err + res.demod_error_count, count_good + res.good_message
-#			
-#		#if res.good_message == 1:
-#		#	print("err: {}, offset: {}, preamble_found: {}, phase_corrected: {}, demod_error_count: {}, delta_test_result: {}, good_message: {}, msgtype: {}, msglen: {}".format(res.processing_error, res.offset, res.preamble_found, res.phase_corrected, res.demod_error_count, res.delta_test_result, res.good_message, res.msgtype, res.msglen))
-#
-#		#this can work but needs further changes
-#		#if res.good_message == 1:
-#		#	print(res.msgtype)
-#		#	print(res.msglen)
-#		#	print(res.mm.msg)
-#		#	#print(pylibmodes.get_mm_msg(res.mm))
-#		#	v = pylibmodes.get_mm_msg(res.mm.msg)
-#		#	print(v.hex())
-#		#	exit()
-#			
-#		#if res.preamble_found == 1:
-#		#	print("err: {}, offset: {}, preamble_found: {}, phase_corrected: {}, demod_error_count: {}, delta_test_result: {}, good_message: {}, msgtype: {}, msglen: {}".format(res.processing_error, res.offset, res.preamble_found, res.phase_corrected, res.demod_error_count, res.delta_test_result, res.good_message, res.msgtype, res.msglen))
-#		#	plt.subplot(2,1,1)
-#		#	plt.plot(np.abs( ((x.astype(np.float32)-127.0)/128.0).view(np.complex64) ))
-#		#	plt.subplot(2,1,2)
-#		#	plt.plot(np.abs(z))
-#		#	plt.show()
-#		
-#		if res.preamble_found == 1 and res.demod_error_count == 0 and res.delta_test_result == 1:
-#			msgtype_counts[res.msgtype] = 1 if res.msgtype not in msgtype_counts else msgtype_counts[res.msgtype] + 1
-#			msgtype_successes[res.msgtype] = res.good_message if res.msgtype not in msgtype_successes else msgtype_successes[res.msgtype] + res.good_message
-#			
-#			if res.msgtype == 17 and res.good_message == 1:
-#				print(pylibmodes.get_mm_msg(res.mm.msg).hex())
-#		
-#		
-#		
-#		if res.good_message == 1 and res.msgtype == 17:
-#			sec_start = res.offset * 2										#2 byte-values per sample
-#			sec_end = res.offset * 2 + (res.msglen * 8 * 2 + 16) * 2		#8 bits in msg, 2 samples per bit, 16 samples of preamble, 2 byte-values per sample
-#			#print(sec_start, sec_end, sec_end - sec_start)
-#			
-#			orig_start = res.offset * DECIMATION							#original is complex64, so no need to double as there is with data passed into libmodes
-#			orig_end = orig_start + (res.msglen * 8 * 2 + 16) * DECIMATION
-#			
-#			yz = z[orig_start:orig_end]
-#			h5out["bursts"]
-#			
-#			#print("input: {},{} ({}) -> raw: {},{} ({})".format(sec_start,sec_end,sec_end-sec_start, orig_start, orig_end, orig_end-orig_start))
-#			#
-#			#y = x[sec_start:sec_end]										#should be 480 bytes long, to become 240 complex samples
-#			#y = ((y.astype(np.float32) - 127.0) / 128.0).view(np.complex64)
-#			##yz = z[sec_start//2*DECIMATION:sec_end//2*DECIMATION]
-#			#yz = z[orig_start:orig_end]
-#			#plt.subplot(2,1,1)
-#			#plt.plot(np.abs(y))
-#			#plt.subplot(2,1,2)
-#			#plt.plot(np.abs(yz))
-#			#plt.show()
-#		
-#		#skip onwards past this message	
-#		if res.good_message == 1:
-#			#x = x[res.offset*2+480:]
-#			x = x[res.offset*2+(res.msglen*8*2+16):]
-#		else:
-#			x = x[res.offset*2+2:]
