@@ -1,1 +1,1 @@
-docker build --tag=rb-mlsdr-siamese .
+docker build --tag=autophyfp-fingerprint-adsb .
