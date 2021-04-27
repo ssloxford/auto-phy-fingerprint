@@ -155,7 +155,7 @@ h5out = h5py.File(outfilename, "w")
 #save for siamese script
 h5out.create_dataset("inds", (h5int_i, 2400, 2), dtype=np.float32)
 h5out.create_dataset("outds", (h5int_i, 1), dtype="S6")
-h5out.create_dataset("meta_datahex", (h5int_i, 1), dtype="S14")
+h5out.create_dataset("meta_datahex", (h5int_i, 1), dtype="S28")		#28 characters as each byte is 2 hex chars
 for h5out_i in range(h5int_i):
 	burst = h5int["bursts_"+str(h5out_i)]
 	h5out["inds"][h5out_i,:,0] = np.real(burst)
