@@ -1,3 +1,4 @@
+import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import h5py
@@ -148,9 +149,13 @@ fingerprint_model = models.Model(inputs=model.layers[2].input, outputs=model.lay
 
 print("Fingerprinting messages")
 
-h5siamese_filename = "/data/mlsdr/adsb_20000000.0_1617071599-df17.hdf5"
-#h5siamese_filename = "/data/mlsdr/adsb_rhb_20000000.0_1617410604-df17.hdf5"
 oversampling_factor = 10
+if len(sys.argv) < 2:
+	h5siamese_filename = "/data/mlsdr/adsb_20000000.0_1617071599-df17.hdf5"
+	#h5siamese_filename = "/data/mlsdr/adsb_rhb_20000000.0_1617410604-df17.hdf5"
+else:
+	h5siamese_filename = sys.argv[1]
+
 
 (test_in, test_out, case_count, waveform_len, feature_count) = loadSiameseDatasets(h5siamese_filename)
 print("Masking identifiers")

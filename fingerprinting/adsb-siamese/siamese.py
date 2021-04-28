@@ -258,7 +258,39 @@ def halfhalf_testinggenerator(inds, outds, batch_size=10):
 		(in_l, in_r, out, out_l, out_r) = select_half_half(inds, outds, batch_size, True)		#third-last param to request raw data too
 		yield ([in_l, in_r], out, out_l, out_r)	#TF2.2
 		#yield ([in_l, in_r], out, [None], out_l, out_r)	#handle TF2.1 bug
-		
+
+"""
+Create a batch of samples, with x-way one shot learning. Based on select_halfhalf above.
+"""
+def select_xway_oneshot(inds, outds, way=4, with_raw_vals=False):	
+	start = np.random.randint(0, len(inds))
+	end = (start + batch_size)
+	batchi = np.arange(start, end)
+	
+	in_l = np.take(inds, batchi, axis=0, mode="wrap")
+	out_l = np.take(outds, batchi, axis=0, mode="wrap")
+
+	in_r = np.empty_like(in_l)
+	out_r = np.empty_like(out_l)
+
+	#first element of right-hand side is matching (ideally not same entry, but ignore here as there are some singular entries)
+	same = np.argwhere(outds.reshape(-1) == out_l[0]).flatten()
+	righti = np.random.randint(0, len(same))
+	in_r[0,:] = inds[same[righti]]
+	out_r[0,:] = outds[same[righti]]
+	
+	#rest is not matching
+	for i in range(way - 1, 1, 1):
+		diff = np.argwhere(outds.reshape(-1) != out_l[i]).flatten()
+		righti = np.random.randint(0, len(diff))
+		in_r[i,:] = inds[diff[righti]]
+		out_r[i,:] = outds[diff[righti]]
+	
+	if with_raw_vals:
+		return in_l, in_r, (out_l == out_r).astype(int), out_l, out_r
+	else:
+		return in_l, in_r, (out_l == out_r).astype(int)
+
 def shuffle_in_unison_scary(a, b):
 	#from: https://stackoverflow.com/questions/4601373/better-way-to-shuffle-two-numpy-arrays-in-unison (another, more elegant, answer in replies if needed)
     rng_state = np.random.get_state()
@@ -269,7 +301,7 @@ def shuffle_in_unison_scary(a, b):
 
 #########################################
 
-SHOULD_TRAIN = True
+SHOULD_TRAIN = False
 
 
 #get the model ready
@@ -392,6 +424,13 @@ else:
 #	plt.show()
 #	break
 
+
+print("Doing x-way one shot validation")
+
+print(select_xway_oneshot(inds, outds, 4))
+
+
+exit()
 
 print("Testing on different dataset")
 #h5siamese_filename = "/data/mlsdr/siamese-4rc-adsb-24h-20200917-allsuccesses.hdf5"

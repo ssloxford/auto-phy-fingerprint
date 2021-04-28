@@ -1,4 +1,4 @@
-#FROM tensorflow/tensorflow:2.1.0-py3
+#FROM tensorflow/tensorflow:latest
 FROM tensorflow/tensorflow:latest-gpu
 
 # avoid questions when installing stuff in apt-get
@@ -29,19 +29,12 @@ RUN pip3 install matplotlib
 RUN pip3 install pandas
 RUN pip3 install keras
 RUN pip3 install h5py
+RUN pip3 install pyModeS
 
-#WORKDIR /home
-#COPY pyMLSDR /home/pyMLSDR
-
-# use Github deployment key (ro access to pyMLSDR private repo)
-#COPY github-pymlsdr-deploy-ro /root/.ssh/id_rsa
-#COPY github-pymlsdr-deploy-ro.pub /root/.ssh/id_rsa.pub
-#RUN ssh-keyscan github.com >> ~/.ssh/known_hosts
-
-# get latest code
-#WORKDIR /home
-#RUN git clone ssh://git@github.com/rb-sdr/pyMLSDR
 
 WORKDIR /root
 COPY siamese.py /root/siamese.py
+COPY fingerprinter.py /root/fingerprinter.py
+COPY models /root/models
+RUN ln -s /root/models/siamese-hisamp-94percent.h5 /root/models/siamese-hisamp.h5
 
