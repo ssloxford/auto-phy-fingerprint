@@ -10,7 +10,7 @@ At present the framework is validated with a concrete example for 1090 MHz ADS-B
 
 The system comprises several components:
 
-![](/sd/Oxford/Oxford CS Research/ML-SDR/auto-phy-fingerprint/doc/verification-diagram.png) 
+![](doc/verification-diagram.png) 
 
 | Component | Description |
 | --- | --- |
@@ -107,11 +107,11 @@ A Siamese model design is implemented, comparing raw IQ signals between two coll
 
 N-way testing, using combined dataset collected at Site 1 in April 2021:
 
-![](/sd/Oxford/Oxford CS Research/ML-SDR/auto-phy-fingerprint/doc/nway-results.png) 
+![](doc/nway-results.png) 
 
 Verifications of a short sample of the above dataset:
 
-![](/sd/Oxford/Oxford CS Research/ML-SDR/auto-phy-fingerprint/doc/verifications-example-adsb.png) 
+![](doc/verifications-example-adsb.png) 
 
 (OpenStreetMap)
 
