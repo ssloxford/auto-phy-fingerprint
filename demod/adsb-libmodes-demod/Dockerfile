@@ -9,7 +9,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y swig
 
 #install pip dependencies
-RUN pip3 install numpy matplotlib pyModeS h5py
+RUN pip3 install numpy matplotlib pyModeS h5py zmq
 
 #RUN find / -name arrayobject.h
 
@@ -23,7 +23,10 @@ COPY code/pySDRBurstfile code/pySDRBurstfile
 RUN cd code/pySDRBurstfile && python3 setup.py install
 
 COPY code/bursts_to_libmodes.py /code
-CMD ["python3", "bursts_to_libmodes.py"]
+COPY code/stream_bursts_via_libmodes.py /code
+
+#CMD ["python3", "bursts_to_libmodes.py"]
+ENTRYPOINT ["/bin/bash", "-c"]
 
 
 

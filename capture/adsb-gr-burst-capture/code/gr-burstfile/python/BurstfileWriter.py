@@ -45,6 +45,13 @@ class BurstfileWriter(gr.sync_block):
 		#self.was_writing = False
 		self.writing = False
 
+	#TODO: this is just guestimating the forecast (and will miss the last samples of a file) -- need to replace this whole class
+	def forecast(self, noutput_items, ninput_items_required):
+		if self.writing:
+			ninput_items_required[0] = 4000
+		else:
+			ninput_items_required = noutput_items
+		
 	def work(self, input_items, output_items):
 		in0 = input_items[0]
 

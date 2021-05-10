@@ -11,5 +11,7 @@ export LD_LIBRARY_PATH=/user/local/lib:$LD_LIBRARY_PATH
 #ensure ssh running
 service ssh restart
 
-#/bin/bash								#live environment with no running capture
-/usr/bin/python3 -u /root/flowgraphs/trigger_to_burstfile_nogui.py	#run capture
+#/bin/bash                                                              		#live environment with no running capture
+#/usr/bin/python3 -u /root/flowgraphs/trigger_to_burstfile_nogui.py     		#run live capture to burstfile
+#/usr/bin/python3 -u /root/flowgraphs/file_to_trigger_to_stream_nogui.py 		#process raw waveform file to stream
+/usr/bin/python3 -u /root/flowgraphs/trigger_to_stream_nogui.py 				#run live capture to stream

@@ -16,6 +16,11 @@ COPY code/gr-burstfile /root/gr-burstfile
 RUN cd gr-burstfile && mkdir build && cd build && cmake .. && \
 	make && make install && ldconfig
 
+#set up gr-streamer
+COPY code/gr-streamer /root/gr-streamer
+RUN cd gr-streamer && mkdir build && cd build && cmake .. && \
+	make && make install && ldconfig
+
 COPY flowgraphs /root/flowgraphs
 COPY startup.sh /root
 

@@ -26,11 +26,7 @@ RUN pip3 install matplotlib
 #RUN pip3 install scikit-image
 #RUN pip3 install scikit-video
 #RUN pip3 install scikit-learn
-RUN pip3 install pandas
-RUN pip3 install keras
-RUN pip3 install h5py
-RUN pip3 install pyModeS
-
+RUN pip3 install pandas keras h5py pyModeS zmq
 
 WORKDIR /root
 COPY siamese.py /root/siamese.py
