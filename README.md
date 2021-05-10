@@ -1,6 +1,6 @@
 # Automatic PHY-layer Fingerprinting
 
-This project implements an end-to-end system for automatic fingerprinting of transmitters at the physical layer, incorporating capture, demodulation, model training, fingerprinting and fingerprint tracking. 
+This project implements an end-to-end system for automatic fingerprinting of transmitters at the physical layer, incorporating capture, demodulation, model training, fingerprinting, fingerprint tracking and visualisation.
 
 The system is built on a modular framework to permit simple variation at each stage. 
 
@@ -20,7 +20,15 @@ The system comprises several components:
 | Fingerprint Extraction and Comparison | A Siamese network model used to derive comparisons between received messages across observed transmitters. |
 | Message Verification | Long-term tracking of message fingerprint comparisons and identity verification |
 
-Data are transferred between components via file storage. Raw and processed data are written to a shared storage area and used by later stages. 
+
+In addition to the main pipeline, some additional components are implemented to help study the data:
+| Component | Description |
+| --- | --- |
+| Storage | Storage components receive bursts and write them to files for offline processing (e.g. model training). At present there are two storage components: one writing bursts to an HDF5 file, one writing decoded messages to an SQLite3 database. |
+| Visualisation | A message verification visualisation is implemented for the ADS-B case, in which messages are displayed along with their verification status. |
+| Supporting (Weather) | A supporting component retrieves and stores data on local weather conditions. |
+
+Data transfer between stages is principally through ZMQ message queues in a PUB/SUB pattern. Each part of the pipeline outputs received bursts, along with appropriate metadata, and forwards them to all subscribers. Alternatively, data can be written to files at each stage, for offline processing -- however as the streaming model accomplishes most tasks more easily, the file-based method is now deprecated. 
 
 
 ### Installation
@@ -42,6 +50,8 @@ Included within containers:
 	* gr-burstfile
 	* gr-triggers
 * Tensorflow 2, Keras
+* ZMQ
+* Bokeh
 
 #### Process
 
@@ -49,20 +59,26 @@ Included within containers:
 TODO
 0. `git clone --recursive https://github.com/ssloxford/auto-phy-fingerprint`
 0. Build capture container
+
 	0. `cd auto-phy-fingerprint/capture/adsb-gr-burst-capture/`
 	0. `./build.sh`
 0. Configure capture container
+
 	0. Edit run.sh with directory mapping for saved burst files
 0. Build demodulation container
+
 	0. `cd ../..`
 	0. `cd demod/adsb-libmodes-demod`
 	0.  `./build.sh`
 0. Build fingerprinting container
+
 	0. `cd ../..`
 	0. `cd fingerprinting/adsb-siamese`
 	0. Configure Dockerfile with either CPU or GPU Tensorflow base image
 	0. `./build.sh`
 	0. Configure run.sh to match CPU/GPU choice
+0. Build storage container
+0. Build visualisation container
 
 
 ### Use
