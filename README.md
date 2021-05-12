@@ -55,40 +55,13 @@ Included within containers:
 
 #### Process
 
-0. Clone and build base gnuradio images
+1. Clone and build base GNURadio images
 TODO
-0. `git clone --recursive https://github.com/ssloxford/auto-phy-fingerprint`
-0. Build capture container
-
-	0. `cd auto-phy-fingerprint/capture/adsb-gr-burst-capture/`
-	0. `./build.sh`
-0. Configure capture container
-
-	0. Edit run.sh with directory mapping for saved burst files
-0. Build demodulation container
-
-	0. `cd ../..`
-	0. `cd demod/adsb-libmodes-demod`
-	0.  `./build.sh`
-0. Build fingerprinting container
-
-	0. `cd ../..`
-	0. `cd fingerprinting/adsb-siamese`
-	0. Configure Dockerfile with either CPU or GPU Tensorflow base image
-	0. `./build.sh`
-	0. Configure run.sh to match CPU/GPU choice
-0. Build storage container
-0. Build visualisation container
-
-
-### Use
-
-* Start the capture container
-	* `capture/adsb-gr-burst-capture/run.sh`
-* Start the demodulation container
-	* `demod/adsb-libmodes-demod/run.sh <burst file name>`
-* Start the message verifier
-	* `fingerprinting/adsb-siamese/run.sh`
+1. `git clone --recursive https://github.com/ssloxford/auto-phy-fingerprint`
+1. Create directory `auto-phy-fingerprint-mountdir`
+1. If using GPU resources, add a suitable `deploy.resources` section to `docker-compose.yml`
+1. `docker-compose up -d`
+1. Check for files appearing in `auto-phy-fingerprint-mountdir` and accessibility of the visualisation service on port 5006
 
 ### ADS-B Verification Example
 
