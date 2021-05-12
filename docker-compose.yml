@@ -1,0 +1,115 @@
+version: "3.3"
+networks:
+        streaming:
+                driver: bridge
+                ipam:
+                        driver: default
+                        config:
+                                - subnet: 172.18.0.0/24
+services:
+        capture:
+                build:
+                        context: ./capture/adsb-gr-burst-capture/
+                        dockerfile: Dockerfile
+                networks:
+                        streaming:
+                                ipv4_address: 172.18.0.3
+                privileged: true
+                volumes:
+                        - /dev:/dev
+                        - /proc:/proc
+                        - /home/sdr/auto-phy-fingerprint-mountdir:/radio
+#               ports:
+#                       - "2225:22"
+                stdin_open: true
+                tty: true
+        demod:
+                build:
+                        context: ./demod/adsb-libmodes-demod/
+                        dockerfile: Dockerfile
+                networks:
+                        streaming:
+                                ipv4_address: 172.18.0.4
+                volumes:
+                        - /home/sdr/auto-phy-fingerprint-mountdir:/radio
+                stdin_open: true
+                tty: true
+                entrypoint: ["python3", "stream_bursts_via_libmodes.py", "tcp://172.18.0.3:5678", "tcp://172.18.0.4:5678"]
+                depends_on: 
+                        - capture
+        fingerprinting:
+                build:
+                        context: ./fingerprinting/adsb-siamese/
+                        dockerfile: Dockerfile
+                networks:
+                        streaming:
+                                ipv4_address: 172.18.0.5
+                volumes:
+                        - /home/sdr/auto-phy-fingerprint-mountdir:/data
+                stdin_open: true
+                tty: true
+                entrypoint: ["python3", "fingerprinter.py", "tcp://172.18.0.4:5678", "tcp://172.18.0.5:5678", "models/siamese-hisamp.h5"]
+                depends_on: 
+                        - capture
+                        - demod
+        storage-bursts:
+                build:
+                        context: ./storage/adsb-demod-msg-storage/
+                        dockerfile: Dockerfile
+                networks:
+                        streaming:
+                                ipv4_address: 172.18.0.6
+                volumes:
+                        - /home/sdr/auto-phy-fingerprint-mountdir:/radio
+                stdin_open: true
+                tty: true
+                entrypoint: ["python3", "store.py", "tcp://172.18.0.4:5678", "/radio/adsb-stream-compose.hdf5", "ADS-B"]
+                depends_on: 
+                        - capture
+                        - demod
+        storage-verified:
+                build:
+                        context: ./storage/adsb-verified-msg-storage/
+                        dockerfile: Dockerfile
+                networks:
+                        streaming:
+                                ipv4_address: 172.18.0.7
+                volumes:
+                        - /home/sdr/auto-phy-fingerprint-mountdir:/radio
+                stdin_open: true
+                tty: true
+                entrypoint: ["python3", "store.py", "tcp://172.18.0.5:5678", "/radio/adsb-stream-compose.sqlite3", "ADS-B"]
+                depends_on: 
+                        - capture
+                        - demod
+                        - fingerprinting
+        visualisation:
+                build:
+                        context: ./visualisation/adsb-positions/
+                        dockerfile: Dockerfile
+                networks:
+                        streaming:
+                                ipv4_address: 172.18.0.8
+                ports:
+                        - "5006:5006"
+                volumes:
+                        - /home/sdr/auto-phy-fingerprint-mountdir:/radio
+                stdin_open: true
+                tty: true
+                entrypoint: ["bokeh", "serve", "mapview", "--allow-websocket-origin=experimentsbox.local:5006", "--args", "--recv_connect_addr", "tcp://172.18.0.5:5678", "--topic", "ADS-B"]
+                depends_on: 
+                        - capture
+                        - demod
+                        - fingerprinting
+        support_weather:
+                build:
+                        context: ./supporting/weather/
+                        dockerfile: Dockerfile
+                networks:
+                        streaming:
+                                ipv4_address: 172.18.0.9
+                volumes:
+                        - /home/sdr/auto-phy-fingerprint-mountdir:/data
+                stdin_open: true
+                tty: true
+
