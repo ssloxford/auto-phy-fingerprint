@@ -91,7 +91,7 @@ session = Session()
 
 REQUEST_INTERVAL = 60 * 60		#one hour
 LAT, LON = (51.752, -1.258)
-OPEN_WEATHER_APIKEY = open("open-weather-api-key").read().strip()
+OPEN_WEATHER_APIKEY = open("/data/open-weather-api-key").read().strip()
 
 targets = [
 	("7TimerAstro", f"https://www.7timer.info/bin/astro.php?lat={LAT}&lon={LON}&ac=0&unit=metric&output=json&tzshift=0", saveAstro),

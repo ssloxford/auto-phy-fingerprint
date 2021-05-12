@@ -53,7 +53,7 @@ class trigger_to_stream_nogui(gr.top_block):
         self.triggers_DoubleSlidingWindowTrigger_0 = triggers.DoubleSlidingWindowTrigger( 200, 8, 2500, 160 )
         self.triggers_DoubleSlidingWindowTrigger_0.set_min_output_buffer(1048576)
         self.triggers_DoubleSlidingWindowTrigger_0.set_max_output_buffer(1048576)
-        self.streamer_BurstStreamer_0 = streamer.BurstStreamer('tcp://172.17.0.3:5678')
+        self.streamer_BurstStreamer_0 = streamer.BurstStreamer('tcp://172.18.0.3:5678')
 
 
 
