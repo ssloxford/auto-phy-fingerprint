@@ -56,7 +56,10 @@ Included within containers:
 #### Process
 
 1. Clone and build base GNURadio images
-TODO
+
+	1. `git clone https://github.com/ssloxford/docker-gnuradio`
+	1. `cd docker-gnuradio`
+	1. `./build_all.sh`
 1. `git clone --recursive https://github.com/ssloxford/auto-phy-fingerprint`
 1. Create directory `auto-phy-fingerprint-mountdir`
 1. If using GPU resources, add a suitable `deploy.resources` section to `docker-compose.yml`
