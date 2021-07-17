@@ -2,9 +2,14 @@
 
 This project implements an end-to-end system for automatic fingerprinting of transmitters at the physical layer, incorporating capture, demodulation, model training, fingerprinting, fingerprint tracking and visualisation.
 
+The project underpins work to study the usefulness of machine-learning techniques in device fingerprinting. Fingerprint derivation is typically a costly, manual task and can vary noticeably between technologies and scenarios. There is also an inherent tension between deriving fingerprinting methods which are robust and generalisable vs. taking full advantage of specifics in a given scenario to enhance performance. The goal of this work is to reduce the need for human analysis in deriving fingerprints. 
+
 The system is built on a modular framework to permit simple variation at each stage. 
 
-At present the framework is validated with a concrete example for 1090 MHz ADS-B traffic, developed for this project. 
+At present the framework is validated with two concrete examples, developed for this project:
+
+* 1090 MHz ADS-B traffic, received over-the-air
+* RS-485 Serial traffic, received via cabling
 
 ### Architecture
 
@@ -25,10 +30,10 @@ In addition to the main pipeline, some additional components are implemented to 
 | Component | Description |
 | --- | --- |
 | Storage | Storage components receive bursts and write them to files for offline processing (e.g. model training). At present there are two storage components: one writing bursts to an HDF5 file, one writing decoded messages to an SQLite3 database. |
-| Visualisation | A message verification visualisation is implemented for the ADS-B case, in which messages are displayed along with their verification status. |
+| Visualisation | Visualisations to show live performance. A message verification visualisation is implemented for the ADS-B case, in which messages and their verification status are displayed, alongside a map of their claimed positions. |
 | Supporting (Weather) | A supporting component retrieves and stores data on local weather conditions. |
 
-Data transfer between stages is principally through ZMQ message queues in a PUB/SUB pattern. Each part of the pipeline outputs received bursts, along with appropriate metadata, and forwards them to all subscribers. Alternatively, data can be written to files at each stage, for offline processing -- however as the streaming model accomplishes most tasks more easily, the file-based method is now deprecated. 
+Data transfer between stages is principally through ZMQ message queues in a PUB/SUB pattern. Each part of the pipeline outputs received bursts, along with appropriate metadata, and forwards them to all subscribers. Alternatively, data can be written to files at each stage, for offline processing. However the streaming model is preferred, both for architectural convenience when splitting across containers/hosts and to support long-running, live uses in which stopping and outputting a file is cumbersome. As such, the file-based method is considered deprecated. 
 
 
 ### Installation
@@ -66,58 +71,11 @@ Included within containers:
 1. `docker-compose up -d`
 1. Check for files appearing in `auto-phy-fingerprint-mountdir` and accessibility of the visualisation service on port 5006
 
-### ADS-B Verification Example
+### Case Studies
 
-To illustrate the behaviour of the framework, a concrete example for the fingerprinting of ADS-B traffic is implemented. The system in under active developement and has not yet undergone a substantial evaluation. Nonetheless, initial testing shows the system to perform moderately, albeit underperforming the state of the art (see Related Work) at present.
+Two case studies exist at present: one for [ADS-B](doc/case-study-adsb.md) and one for [RS-485](doc/case-study-rs485.md). Please see each link for details. 
 
-The ADS-B verifier operates under the following threat model:
 
-* The system is developed under a threat model that considers compromised devices and low-resourced SDR attackers. Key to both of these is that the attacker is not able to fully match the physical characteristics of another transmitter (although they may do so to some extent). 
-* The system does not, at present, attempt to protect against a well-resourced SDR attacker. In this case the attacker is able to mimic another transmitter with arbitrary precision. 
-
-The ADS-B example collects data at two sites, using inexpensive, commodity hardware at each. 
-
-Site 1:
-
-* 1090 MHz monopole
-* Nooelec LaNA amplifier
-* DC block
-* Ettus USRP b205i-mini
-* Intel NUC D54250WYK (Intel Core i5-4250U)
-
-Site 2:
-
-* 1090 MHz discone
-* Ettus USRP b205i-mini
-* Dell OptiPlex 7040 (Intel Core i7-6700)
-
-Model training makes use of a dedicated computer (Intel Xeon Silver 4210, NVIDIA Tesla V100). 
-
-A Siamese model design is implemented, comparing raw IQ signals between two collected messages in an initial training phase. The model is then used to verify collected messages, tracking a long-term fingerprint for each and comparing each message to that baseline.
-
-#### Preliminary Results
-
-N-way testing, using combined dataset collected at Site 1 in April 2021:
-
-![](doc/nway-results.png) 
-
-Verifications of a short sample of the above dataset:
-
-![](doc/verifications-example-adsb.png) 
-
-(OpenStreetMap)
-
-### Related Work
-
-* T. Jian et al., ‘Deep Learning for RF Fingerprinting: A Massive Experimental Study’, IEEE Internet Things M., vol. 3, no. 1, pp. 50–57, Mar. 2020, doi: 10.1109/IOTM.0001.1900065.
-
-* S. Chen, S. Zheng, L. Yang, and X. Yang, ‘Deep Learning for Large-Scale Real-World ACARS and ADS-B Radio Signal Classification’, IEEE Access, vol. 7, pp. 89256–89264, 2019, doi: 10.1109/ACCESS.2019.2925569.
-
-* Z. L. Langford, ‘Robust Signal Classification Using Siamese Networks.’, pp. 1–5, 2019, doi: 10.1145/3324921.3328781.
-
-* X. Ying, J. Mazer, G. Bernieri, M. Conti, L. Bushnell, and R. Poovendran, ‘Detecting ADS-B Spoofing Attacks using Deep Neural Networks’, arXiv:1904.09969 [cs], Apr. 2019, Accessed: Nov. 17, 2020. [Online]. Available: http://arxiv.org/abs/1904.09969.
-
-* K. Sankhe, M. Belgiovine, F. Zhou, S. Riyaz, S. Ioannidis, and K. Chowdhury, ‘ORACLE: Optimized Radio clAssification through Convolutional neuraL nEtworks’, in IEEE INFOCOM 2019 - IEEE Conference on Computer Communications, Paris, France, Apr. 2019, pp. 370–378, doi: 10.1109/INFOCOM.2019.8737463.
 
 ### Acknowledgements
 
