@@ -24,8 +24,10 @@ import numpy
 from gnuradio import gr
 import pmt
 
+import time
 import json
 import zmq
+import uuid
 
 class BurstStreamer(gr.sync_block):
 	"""
@@ -37,12 +39,15 @@ class BurstStreamer(gr.sync_block):
 		self.trigger_tag = "burst"
 		self.writing = False
 		self.noprogresscounter = 0
-		
+
 		self.context = zmq.Context()
 		self.socket = self.context.socket(zmq.PUB)
 		self.socket.setsockopt(zmq.SNDHWM, 1024)	#1024 messages ~= 32MiB if burst is 4096 complex samples long
 		self.socket.bind(bind_addr)
-	
+
+		self.capture_start = time.time()
+		self.samprate = 20e6				#TODO: this should be passed in as a parameter
+
 #	#TODO: this is just guestimating the forecast (and will miss the last samples of a file) -- need to replace this whole class
 #	def forecast(self, noutput_items, ninput_items_required):
 #		#if self.writing:
@@ -50,7 +55,7 @@ class BurstStreamer(gr.sync_block):
 #		#else:
 #		#	ninput_items_required = noutput_items
 #		ninput_items_required[0] = 4000
-	
+
 	def work(self, input_items, output_items):
 		in0 = input_items[0]
 
@@ -66,7 +71,7 @@ class BurstStreamer(gr.sync_block):
 			self.writing = False
 			self.noprogresscounter = 0
 			return len(in0)
-		
+
 		#get the tags
 		total_read = self.nitems_read(0)
 		tags = self.get_tags_in_window(0, 0, len(input_items[0]))
@@ -91,12 +96,12 @@ class BurstStreamer(gr.sync_block):
 					#data = in0[0:rel_offset].tobytes()
 					#msg = meta.encode("utf-8") + b"\x00" + data
 					#self.socket.send(msg)
-					
+
 					topic = b"ADS-B"
-					meta = json.dumps({"start": total_read, "end": tag.offset, "source": "gr-streamer"}).encode("utf-8")
+					meta = json.dumps({"start": total_read, "end": tag.offset, "msgtime": self.capture_start+(total_read/self.samprate), "source": "gr-streamer", "uuid": str(uuid.uuid4())}).encode("utf-8")
 					data = in0[0:rel_offset].tobytes()
 					self.socket.send_multipart([topic, meta, data])
-					
+
 					self.writing = False
 					return rel_offset
 				else:
@@ -111,4 +116,3 @@ class BurstStreamer(gr.sync_block):
 		else:
 			self.noprogresscounter += 1
 			return 0
-

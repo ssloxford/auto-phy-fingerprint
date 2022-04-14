@@ -14,7 +14,8 @@ log.setLevel(logging.INFO)
 
 qs = set()
 
-LAT, LON = 51.753037, -1.258651				#Oxford
+#LAT, LON = 51.753037, -1.258651				#Oxford
+LAT, LON = 51.0691, 0.6894					#Tenterden
 
 tra = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
 
@@ -38,7 +39,7 @@ def streamFromZMQ(addr, topic=""):
 	log.info(f"Setting up ZMQ SUB socket connecting to {addr}")
 	insocket = context.socket(zmq.SUB)
 	insocket.connect(addr)
-	
+
 	log.info(f"Subscribing to ZMQ topic \"{topic}\"")
 	insocket.subscribe(topic)
 
@@ -74,4 +75,3 @@ def streamFromZMQ(addr, topic=""):
 		else:
 			time.sleep(0.5) # wait 500ms and try again
 			continue
-

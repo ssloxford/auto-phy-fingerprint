@@ -1,5 +1,6 @@
-#FROM tensorflow/tensorflow:latest
-FROM tensorflow/tensorflow:latest-gpu
+#FROM tensorflow/tensorflow:latest		#runs into .pyc mismatch on start -- maybe need to build model against newer version?
+FROM tensorflow/tensorflow:2.6.0
+#FROM tensorflow/tensorflow:latest-gpu
 
 # avoid questions when installing stuff in apt-get
 ARG DEBIAN_FRONTEND=noninteractive
@@ -26,11 +27,10 @@ RUN pip3 install matplotlib
 #RUN pip3 install scikit-image
 #RUN pip3 install scikit-video
 #RUN pip3 install scikit-learn
-RUN pip3 install pandas keras h5py pyModeS zmq
+RUN pip3 install pandas keras h5py pyModeS zmq sqlalchemy
 
 WORKDIR /root
 COPY siamese.py /root/siamese.py
 COPY fingerprinter.py /root/fingerprinter.py
 COPY models /root/models
 RUN ln -s /root/models/siamese-hisamp-94percent.h5 /root/models/siamese-hisamp.h5
-
