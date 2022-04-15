@@ -6,8 +6,8 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1' # 0 = all messages are logged (default 
 import tensorflow as tf
 from tensorflow.keras import layers, models
 
-import util.dataset as dataset
-import util.tf_tweak as tf_tweak
+import common.dataset as dataset
+import common.tf_tweak as tf_tweak
 
 # Limit GPU usage
 tf_tweak.limit_gpu_memory_usage()

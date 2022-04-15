@@ -1,9 +1,9 @@
 import logging
 import argparse
 
-import util.tf_tweak as tf_tweak
-import util.dataset as dataset
-import util.constants as constants
+import common.tf_tweak as tf_tweak
+import common.dataset as dataset
+import common.constants as constants
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1' #0 = all messages are logged (default behavior), 1 = INFO messages are not printed, 2 = INFO and WARNING messages are not printed, 3 = INFO, WARNING, and ERROR messages are not printed
