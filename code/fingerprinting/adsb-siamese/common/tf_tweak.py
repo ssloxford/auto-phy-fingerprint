@@ -21,7 +21,7 @@ def limit_gpu_memory_usage():
 Disable eager execution, which is enabled by default from TensorFlow 2.0 onwards.
 """
 def disable_eager_execution():
-    from tf.python.framework.ops import disable_eager_execution
-    disable_eager_execution()
+    from tensorflow.python.framework import ops
+    ops.disable_eager_execution()
     if tf.executing_eagerly():
         print("Warning: Eager execution is still enabled, performance will be severely impacted")

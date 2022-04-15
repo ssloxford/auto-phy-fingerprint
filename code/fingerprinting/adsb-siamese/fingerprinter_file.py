@@ -70,7 +70,7 @@ for msgi in range(case_count):
 		result_logs[claimedicao] = []
 	else:	#otherwise check the fingerprint
 		msg_shaped = msg.reshape(1, constants.message_symbols * oversampling_factor, feature_count)
-		ref_shaped = known_aircraft[claimedicao].reshape(1, constants.message_symbols * constants.oversampling_factor, feature_count)
+		ref_shaped = known_aircraft[claimedicao].reshape(1, constants.message_symbols * oversampling_factor, feature_count)
 		compare_result = model.predict([msg_shaped, ref_shaped])
 		match = compare_result.flatten()[0] > 0.5
 		#print("Message for {} matches: {}".format(claimedicao, match))

@@ -56,7 +56,10 @@ for bursti in range(record_count):
     #identifier = inf["outds"][bursti]
     msg = inf["meta_datahex"][bursti].tobytes().decode("utf-8")
     msguuid = inf["meta_uuid"][bursti].tobytes().decode("utf-8")
-    msgtime = inf["meta_msgtime"][bursti]
+    if "meta_msgtime" in inf:
+        msgtime = inf["meta_msgtime"][bursti]
+    else:
+        msgtime = 0
 
     #iterate over other dataset_names
     #build a message

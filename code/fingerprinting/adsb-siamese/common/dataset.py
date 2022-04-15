@@ -1,7 +1,7 @@
 import h5py
 import numpy as np
 
-import constants
+import common.constants as constants
 
 """
 Load a dataset from an HDF5 file.

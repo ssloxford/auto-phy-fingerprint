@@ -6,7 +6,9 @@ import zmq
 import json
 import time
 
-import adsb_siamese_common as asc
+import common.tf_tweak as tf_tweak
+import common.dataset as dataset
+import common.constants as constants
 
 from datetime import datetime
 import sqlalchemy as db
@@ -69,7 +71,7 @@ import tensorflow as tf
 from tensorflow.keras import layers, models
 
 #limit gpu usage
-asc.tf_tweak_limit_gpu_memory_usage()
+tf_tweak.limit_gpu_memory_usage()
 
 
 logging.info("Loading verification model")
@@ -140,8 +142,7 @@ while True:
 	msg = np.empty(shape=(waveform_len, feature_count), dtype=np.float32)
 	msg[:,0] = np.real(msg_c)
 	msg[:,1] = np.imag(msg_c)
-	#msg[32*oversampling_factor:80*oversampling_factor,:] = 0.0			#masking out icao	#TODO: use the standard masking routine
-	msg = asc.maskDataset(msg, oversampling_factor, "NOICAO")
+	msg = dataset.maskDataset(msg.reshape(1, waveform_len, feature_count), oversampling_factor, "NOICAO").reshape(waveform_len, feature_count)
 
 	logging.debug("Tracking/verifying message")
 	verif_status = None
