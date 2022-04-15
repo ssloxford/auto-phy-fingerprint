@@ -6,6 +6,8 @@ import zmq
 import json
 import time
 
+import adsb_siamese_common as asc
+
 from datetime import datetime
 import sqlalchemy as db
 from sqlalchemy.ext.declarative import declarative_base
@@ -47,27 +49,6 @@ class FingerprintDB:
 		self.session.add(fpm)
 		self.session.commit()
 
-def maskDataset(inds, osf, maskname):
-	if maskname is None or maskname == "NONE":
-		return inds						#nothing
-	elif maskname == "HEADERONLY":
-		return inds[:,:32*osf,:]				#aggressive masking, 32 samples is only the beginning of the header, no icao, no data, no crc
-		#inds[:,32*osf:,:] = 0.0
-		return inds
-	elif maskname == "NOICAO":
-		inds[:,32*osf:80*osf,:] = 0.0			#masking out icao
-		return inds
-	elif maskname == "INVERSE-ICAOONLY":
-		inds[:,:32*osf,:] = 0.0			#inverse icao masking -- leaving *only* the icao
-		inds[:,80*osf:,:] = 0.0			#inverse icao masking -- leaving *only* the icao
-		return inds
-	elif maskname == "NOICAOORLATLON":
-		inds[:,32*osf:80*osf,:] = 0.0			#masking out icao
-		inds[:,124*osf:192*osf,:] = 0.0			#masking out latlon
-		return inds
-	else:
-		raise ValueError("Unknown mask name")
-
 #########################################
 
 logging.basicConfig(format='%(asctime)s:%(name)s:%(levelname)s|%(message)s', level=logging.INFO)
@@ -88,18 +69,7 @@ import tensorflow as tf
 from tensorflow.keras import layers, models
 
 #limit gpu usage
-gpus = tf.config.list_physical_devices('GPU')
-if gpus:
-	try:
-		# Currently, memory growth needs to be the same across GPUs
-		logging.info("Setting GPU memory policy to 'grow as needed'")
-		for gpu in gpus:
-			tf.config.experimental.set_memory_growth(gpu, True)
-		logical_gpus = tf.config.experimental.list_logical_devices('GPU')
-		logging.info(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
-	except RuntimeError as e:
-		# Memory growth must be set before GPUs have been initialized
-		logging.error(e)
+asc.tf_tweak_limit_gpu_memory_usage()
 
 
 logging.info("Loading verification model")
@@ -170,7 +140,8 @@ while True:
 	msg = np.empty(shape=(waveform_len, feature_count), dtype=np.float32)
 	msg[:,0] = np.real(msg_c)
 	msg[:,1] = np.imag(msg_c)
-	msg[32*oversampling_factor:80*oversampling_factor,:] = 0.0			#masking out icao
+	#msg[32*oversampling_factor:80*oversampling_factor,:] = 0.0			#masking out icao	#TODO: use the standard masking routine
+	msg = asc.maskDataset(msg, oversampling_factor, "NOICAO")
 
 	logging.debug("Tracking/verifying message")
 	verif_status = None

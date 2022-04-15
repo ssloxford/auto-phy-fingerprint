@@ -1,100 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import h5py
+import adsb_siamese_common as asc
+import adsb_siamese_constants as const
+
 #import pyModeS as modes
-
-
-#def getSiameseModel():
-#	left_input = layers.Input((waveform_len, 2))
-#	right_input = layers.Input((waveform_len, 2))
-#	
-#	model = models.Sequential()
-#	
-#	#model.add(layers.Input(shape=(waveform_len,2)))
-#	model.add(layers.BatchNormalization())
-#	model.add(layers.ZeroPadding1D(padding=2))
-#	#model.add(layers.UpSampling1D(size=6))
-#	print("***NOT UPSAMPLING BECAUSE USING 20MSPS DATA NOW***")
-#	
-#	#64,48,32,16 did well (91.4% after long lunch)
-#	#model.add(layers.Conv1D(48, 2, activation='relu'))			#copied from my decoding model
-#	model.add(layers.Conv1D(64, 2, activation='relu'))			#copied from my decoding model
-#	#model.add(layers.Conv1D(16, 8, activation='relu'))			#'normal' layer from Siamese tutorial		(seemed to perform worse with high-samp captures)
-#	model.add(layers.MaxPooling1D())
-#	
-#	model.add(layers.Conv1D(64, 4, activation='relu'))			#copied from my decoding model
-#	#model.add(layers.Conv1D(32, 4, activation='relu'))			#'normal' layer from Siamese tutorial
-#	model.add(layers.MaxPooling1D())
-#	
-#	model.add(layers.Conv1D(32, 8, activation='relu'))			#copied from my decoding model
-#	#model.add(layers.Conv1D(48, 2, activation='relu'))			#'normal' layer from Siamese tutorial
-#	model.add(layers.MaxPooling1D())
-#
-#	model.add(layers.Conv1D(32, 16, activation='relu'))			#added
-#	model.add(layers.MaxPooling1D())
-#	
-#	model.add(layers.Conv1D(32, 32, activation='relu'))			#added
-#	model.add(layers.MaxPooling1D())
-#
-#
-##	model.add(layers.Conv1D(4, 8, activation='relu'))			#added
-##	model.add(layers.MaxPooling1D())
-#	
-#	## general VGG-style layers
-#	#for i in range(8):
-#	#	model.add(layers.Conv1D(32, 3, padding='same', activation='relu'))
-#	#model.add(layers.MaxPooling1D(strides=2))
-#
-#
-##	##general inception-style layers
-##	lastlayer = model.layers[-1]()
-##	for i in range(1):
-##		conv1 = layers.Conv1D(32, 1, padding="same", activation="relu")(lastlayer)
-##		conv3 = layers.Conv1D(64, 3, padding="same", activation="relu")(lastlayer)
-##		conv5 = layers.Conv1D(16, 5, padding="same", activation="relu")(lastlayer)
-##		pool = layers.MaxPooling1D(3, 1, padding="same")(lastlayer)
-##		lout = layers.concatenate([conv1, conv3, conv5, pool], axis=-1)
-##		model.add(lout)
-##		lastlayer = lout
-#
-#
-#	
-#	model.add(layers.Flatten())
-#	
-#	model.add(layers.Dense(256, activation="sigmoid"))			#original 1024 didn't seem to do better than 256
-#	
-#	encoded_l = model(left_input)
-#	encoded_r = model(right_input)
-#	
-#	# Add a customized layer to compute the absolute difference between the encodings
-#	L1_layer = layers.Lambda(lambda tensors: tf.keras.backend.abs(tensors[0] - tensors[1]))
-#	L1_distance = L1_layer([encoded_l, encoded_r])
-#	
-#	# Add a dense layer with a sigmoid unit to generate the similarity score
-#	#prediction = layers.Dense(1,activation='sigmoid',bias_initializer=initialize_bias)(L1_distance)
-#	prediction = layers.Dense(1,activation='sigmoid')(L1_distance)
-#	
-#	# Connect the inputs with the outputs
-#	siamese_net = models.Model(inputs=[left_input,right_input],outputs=prediction)
-#	
-#	# return the model
-#	return siamese_net
-
-
-
-#def getInceptionSiameseModel():
-#        left_input = layers.Input((waveform_len, 2))
-#        right_input = layers.Input((waveform_len, 2))
-#
-#	model = models.Model()
-#
-#	##general inception-style layers
-#	for i in range(1):
-#		conv1 = layers.Conv1D(32, 1, padding="same", activation="relu")
-#		conv3 = layers.Conv1D(64, 3, padding="same", activation="relu")
-#		conv5 = layers.Conv1D(16, 5, padding="same", activation="relu")
-#
-
 
 def getSiameseModel():
 	left_input = layers.Input((waveform_len, 2))
@@ -104,25 +14,16 @@ def getSiameseModel():
 	l = layers.BatchNormalization()(dummy_input)
 	l = layers.ZeroPadding1D(padding=2)(l)
 	
-	#l = layers.Conv1D(64, 2, activation='relu')(l)
-	#l = layers.MaxPooling1D()(l)
-	#l = layers.Conv1D(64, 4, activation='relu')(l)
-	#l = layers.MaxPooling1D()(l)
-	#l = layers.Conv1D(32, 8, activation='relu')(l)
-	#l = layers.MaxPooling1D()(l)
-	#l = layers.Conv1D(32, 16, activation='relu')(l)
-	#l = layers.MaxPooling1D()(l)
-	#l = layers.Conv1D(32, 32, activation='relu')(l)
-	#l = layers.MaxPooling1D()(l)
-	
-	##general inception-style layers
-	for i in range(1):
-		conv1 = layers.Conv1D(32, 1, padding="same", activation="relu")(l)
-		conv3 = layers.Conv1D(64, 3, padding="same", activation="relu")(l)
-		conv5 = layers.Conv1D(16, 5, padding="same", activation="relu")(l)
-		pool = layers.MaxPooling1D(3, strides=1, padding='same')(l)
-		l = layers.concatenate([conv1, conv3, conv5, pool], axis=-1)
-		
+	l = layers.Conv1D(64, 2, activation='relu')(l)
+	l = layers.MaxPooling1D()(l)
+	l = layers.Conv1D(64, 4, activation='relu')(l)
+	l = layers.MaxPooling1D()(l)
+	l = layers.Conv1D(32, 8, activation='relu')(l)
+	l = layers.MaxPooling1D()(l)
+	l = layers.Conv1D(32, 16, activation='relu')(l)
+	l = layers.MaxPooling1D()(l)
+	l = layers.Conv1D(32, 32, activation='relu')(l)
+	l = layers.MaxPooling1D()(l)
 	
 	l = layers.Flatten()(l)
 	
@@ -142,122 +43,22 @@ def getSiameseModel():
 	prediction = layers.Dense(1,activation='sigmoid')(L1_distance)
 	
 	# Connect the inputs with the outputs
-	siamese_net = models.Model(inputs=[left_input,right_input],outputs=prediction)
+	siamese_net = models.Model(inputs=[left_input, right_input], outputs=prediction)
 	
 	# return the model
 	return siamese_net
 
 #not working with siamese model and don't (currently) know how to fix
 def flatten_model(model_nested):
-    layers_flat = []
-    for layer in model_nested.layers:
-        try:
-            layers_flat.extend(layer.layers)
-        except AttributeError:
-            layers_flat.append(layer)
-    print(layers_flat)
-    model_flat = models.Sequential(layers_flat)
-    return model_flat
-
-def loadSiameseDatasets(h5siamese_filename, subset=None):
-	h5in = h5py.File(h5siamese_filename, "r")
-	inds = h5in["inds"]
-	outds = h5in["outds"]
-
-	if subset != None:
-		inds = inds[:subset]
-		outds = outds[:subset]
-		
-	#load the datasets into memory for speed
-	inds = np.array(inds)
-	outds = np.array(outds)
-	
-	(case_count, waveform_len, feature_count) = inds.shape
-	
-	h5in.close()
-	
-	return (inds, outds, case_count, waveform_len, feature_count)
-
-def maskDataset(inds, osf, maskname):
-	if maskname is None or maskname == "NONE":
-		return inds						#nothing
-	elif maskname == "HEADERONLY":
-		return inds[:,:32*osf,:]				#aggressive masking, 32 samples is only the beginning of the header, no icao, no data, no crc
-		#inds[:,32*osf:,:] = 0.0
-		return inds
-	elif maskname == "NOICAO":
-		inds[:,32*osf:80*osf,:] = 0.0			#masking out icao
-		return inds
-	elif maskname == "INVERSE-ICAOONLY":
-		inds[:,:32*osf,:] = 0.0			#inverse icao masking -- leaving *only* the icao
-		inds[:,80*osf:,:] = 0.0			#inverse icao masking -- leaving *only* the icao
-		return inds
-	elif maskname == "NOICAOORLATLON":
-		inds[:,32*osf:80*osf,:] = 0.0			#masking out icao
-		inds[:,124*osf:192*osf,:] = 0.0			#masking out latlon
-		return inds
-	else:
-		raise ValueError("Unknown mask name")
-
-"""
-Create a batch of pairwise samples, where half are the same class left-and-right and half are different classes left-and-right. 
-This is much easier if the dataset has equal blocks of each, but we don't have that, so a lot of expensive lookups are needed (lucky numpy is fast).
-"""
-def select_half_half(inds, outds, batch_size=10, with_raw_vals=False):	
-	start = np.random.randint(0, len(inds))
-	end = (start + batch_size)
-	batchi = np.arange(start, end)
-	
-	in_l = np.take(inds, batchi, axis=0, mode="wrap")
-	out_l = np.take(outds, batchi, axis=0, mode="wrap")
-
-	in_r = np.empty_like(in_l)
-	out_r = np.empty_like(out_l)
-	
-	#out_r[:] = "none"
-	
-	#first half of right-hand side is matching (ideally not same entry, but ignore here as there are some singular entries)
-	for i in range(batch_size // 2):
-		same = np.argwhere(outds.reshape(-1) == out_l[i]).flatten()
-		righti = np.random.randint(0, len(same))
-		in_r[i,:] = inds[same[righti]]
-		out_r[i,:] = outds[same[righti]]
-	
-	#second half is not matching
-	for i in range(batch_size // 2, batch_size, 1):
-		diff = np.argwhere(outds.reshape(-1) != out_l[i]).flatten()
-		righti = np.random.randint(0, len(diff))
-		in_r[i,:] = inds[diff[righti]]
-		out_r[i,:] = outds[diff[righti]]
-	
-	#for i in range(len(in_l)):
-	#	print(str(out_l[i]) + "\t" + str(out_r[i]))
-	
-	#visualise the differences in the waveforms
-	#i = 8
-	#print(str(out_l[i]) + "\t" + str(out_r[i]))
-	#plt.plot(in_l[i][:,0])
-	#plt.plot(in_r[i][:,0])
-	#plt.plot(np.abs(np.fft.fft(in_l[i][:,0])))		#this is cool, generally the same planes have a very similar fft and the different ones have noticeable differences
-	#plt.plot(np.abs(np.fft.fft(in_r[i][:,0])))
-	#plt.show()
-	
-	if with_raw_vals:
-		return in_l, in_r, (out_l == out_r).astype(int), out_l, out_r
-	else:
-		return in_l, in_r, (out_l == out_r).astype(int)
-
-def halfhalf_generator(inds, outds, batch_size=10):
-	while True:
-		(in_l, in_r, out) = select_half_half(inds, outds, batch_size)
-		yield ([in_l, in_r], out)	#TF2.2
-		#yield ([in_l, in_r], out, [None])	#handle TF2.1 bug
-
-def halfhalf_testinggenerator(inds, outds, batch_size=10):
-	while True:
-		(in_l, in_r, out, out_l, out_r) = select_half_half(inds, outds, batch_size, True)		#third-last param to request raw data too
-		yield ([in_l, in_r], out, out_l, out_r)	#TF2.2
-		#yield ([in_l, in_r], out, [None], out_l, out_r)	#handle TF2.1 bug
+	layers_flat = []
+	for layer in model_nested.layers:
+		try:
+			layers_flat.extend(layer.layers)
+		except AttributeError:
+			layers_flat.append(layer)
+	print(layers_flat)
+	model_flat = models.Sequential(layers_flat)
+	return model_flat
 
 """
 Create a batch of samples, with x-way one shot learning. Based on select_halfhalf above.
@@ -291,14 +92,6 @@ def select_xway_oneshot(inds, outds, way=4, with_raw_vals=False):
 	else:
 		return in_l, in_r, (out_l == out_r).astype(int)
 
-def shuffle_in_unison_scary(a, b):
-	#from: https://stackoverflow.com/questions/4601373/better-way-to-shuffle-two-numpy-arrays-in-unison (another, more elegant, answer in replies if needed)
-    rng_state = np.random.get_state()
-    np.random.shuffle(a)
-    np.random.set_state(rng_state)
-    np.random.shuffle(b)
-	
-
 #########################################
 
 SHOULD_TRAIN = False
@@ -312,23 +105,9 @@ import tensorflow as tf
 from tensorflow.keras import layers, models
 
 #limit gpu usage
-gpus = tf.config.list_physical_devices('GPU')
-if gpus:
-	try:
-		# Currently, memory growth needs to be the same across GPUs
-		print("Setting GPU memory policy to 'grow as needed'")
-		for gpu in gpus:
-			tf.config.experimental.set_memory_growth(gpu, True)
-		logical_gpus = tf.config.experimental.list_logical_devices('GPU')
-		print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
-	except RuntimeError as e:
-		# Memory growth must be set before GPUs have been initialized
-		print(e)
-
-
+asc.tf_tweak_limit_gpu_memory_usage()
 
 if SHOULD_TRAIN:
-
 	print("Training model")
 	
 	print("Loading datasets")
@@ -337,7 +116,8 @@ if SHOULD_TRAIN:
 	#h5siamese_filename = "/data/mlsdr/adsb_20000000.0_1616720475-df17.hdf5"
 	h5siamese_filename = "/data/mlsdr/adsb_20000000.0_1617071599-df17.hdf5"
 	oversampling_factor = 10
-	(train_in, train_out, case_count, waveform_len, feature_count) = loadSiameseDatasets(h5siamese_filename)
+	(train_in, train_out, case_count, waveform_len, feature_count) = asc.loadSiameseDatasets(h5siamese_filename)
+	asc.validate_dataset_dimensions(case_count, waveform_len, feature_count)
 	print((train_in.shape, train_out.shape, case_count, waveform_len, feature_count))
 	
 	#preliminary results (accuracy on different day's capture in long randomised trials, 3 epoch training and ~50000 trials testing):
@@ -349,10 +129,8 @@ if SHOULD_TRAIN:
 	# and to demonstrate
 	#	INVERSE-ICAOONLY			99.75% acc (0.0105 loss)
 	print("Masking identifiers")
-	train_in = maskDataset(train_in, oversampling_factor, "NOICAO")					#options: NONE, HEADERONLY, NOICAO, NOICAOORLATLON and the opposite INVERSE-ICAOONLY
-	(case_count, waveform_len, feature_count) = train_in.shape
-	print(train_in.shape)
-	
+	train_in = asc.maskDataset(train_in, oversampling_factor, "NOICAO")					#options: NONE, HEADERONLY, NOICAO, NOICAOORLATLON and the opposite INVERSE-ICAOONLY
+
 	model = getSiameseModel()
 	model.summary()
 	#from tensorflow.keras.utils import plot_model
@@ -362,7 +140,7 @@ if SHOULD_TRAIN:
 
 	model.compile(optimizer='adam', loss='binary_crossentropy')
 
-	hist = model.fit(x=halfhalf_generator(train_in, train_out, 100), epochs=15, steps_per_epoch=len(train_in)//100)
+	hist = model.fit(x=asc.halfhalf_generator(train_in, train_out, 100), epochs=15, steps_per_epoch=len(train_in) // 100)
 	#hist = model.fit_generator(halfhalf_generator(train_in, train_out, 100), epochs=10, steps_per_epoch=len(train_in)//100)
 
 	print("Saving model")
@@ -425,9 +203,9 @@ else:
 #	break
 
 
-print("Doing x-way one shot validation")
-
-print(select_xway_oneshot(inds, outds, 4))
+#print("Doing x-way one shot validation")
+#
+#print(select_xway_oneshot(inds, outds, 4))
 
 
 exit()
@@ -441,16 +219,17 @@ print("Testing on different dataset")
 #h5siamese_filename = "/data/mlsdr/adsb_20000000.0_1617071599-df17.hdf5"
 h5siamese_filename = "/data/mlsdr/adsb_rhb_20000000.0_1617410604-df17.hdf5"
 oversampling_factor = 10
-(test_in, test_out, case_count, waveform_len, feature_count) = loadSiameseDatasets(h5siamese_filename)
+(test_in, test_out, case_count, waveform_len, feature_count) = asc.loadSiameseDatasets(h5siamese_filename)
+asc.validate_dataset_dimensions(case_count, waveform_len, feature_count)
+
 print("Masking identifiers")
-test_in = maskDataset(test_in, oversampling_factor, "NOICAO")
-(case_count, waveform_len, feature_count) = test_in.shape
+test_in = asc.maskDataset(test_in, oversampling_factor, "NOICAO")
 
 test_batches = 1000000
 batch_size = 10
 test_sum = 0
 test_count = 0
-for ([in_l, in_r], matches, out_l, out_r) in halfhalf_testinggenerator(test_in, test_out, batch_size):
+for ([in_l, in_r], matches, out_l, out_r) in asc.halfhalf_testinggenerator(test_in, test_out, batch_size):
 	if test_batches <= 0:
 		break
 		
