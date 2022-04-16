@@ -15,7 +15,7 @@ At present the framework is validated with two concrete examples, developed for 
 
 The system comprises several components:
 
-![](doc/verification-diagram.png) 
+![](documentation/verification-diagram.png) 
 
 | Component | Description |
 | --- | --- |
@@ -27,6 +27,7 @@ The system comprises several components:
 
 
 In addition to the main pipeline, some additional components are implemented to help study the data:
+
 | Component | Description |
 | --- | --- |
 | Storage | Storage components receive bursts and write them to files for offline processing (e.g. model training). At present there are two storage components: one writing bursts to an HDF5 file, one writing decoded messages to an SQLite3 database. |
@@ -73,7 +74,7 @@ Included within containers:
 
 ### Case Studies
 
-Two case studies exist at present: one for [ADS-B](doc/case-study-adsb.md) and one for [RS-485](doc/case-study-rs485.md). Please see each link for details. 
+Two case studies exist at present: one for [ADS-B](documentation/case-study-adsb.md) and one for [RS-485](documentation/case-study-rs485.md). Please see each link for details. 
 
 
 
