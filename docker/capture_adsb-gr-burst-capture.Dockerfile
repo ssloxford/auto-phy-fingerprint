@@ -1,29 +1,23 @@
 FROM sslox-gnuradio-3.8
 
-WORKDIR /root
+#copy in the codebase
+WORKDIR /
+RUN mkdir /code
+COPY code /code
 
 #set up gr-triggers
-COPY code/gr-triggers /root/gr-triggers
-RUN cd gr-triggers && mkdir build && cd build && cmake .. && \
+RUN cd /code/capture/adsb-gr-burst-capture/code/gr-triggers && mkdir build && cd build && cmake .. && \
 	make && make install && ldconfig
 
 #set up pySDRBurstfile
-COPY code/pySDRBurstfile /root/pySDRBurstfile
-RUN cd pySDRBurstfile && python3 setup.py install
+RUN cd /code/capture/adsb-gr-burst-capture/code/pySDRBurstfile && python3 setup.py install
 
 #set up gr-burstfile
-COPY code/gr-burstfile /root/gr-burstfile
-RUN cd gr-burstfile && mkdir build && cd build && cmake .. && \
+RUN cd /code/capture/adsb-gr-burst-capture/code/gr-burstfile && mkdir build && cd build && cmake .. && \
 	make && make install && ldconfig
 
 #set up gr-streamer
-COPY code/gr-streamer /root/gr-streamer
-RUN cd gr-streamer && mkdir build && cd build && cmake .. && \
+RUN cd /code/capture/adsb-gr-burst-capture/code/gr-streamer && mkdir build && cd build && cmake .. && \
 	make && make install && ldconfig
 
-COPY flowgraphs /root/flowgraphs
-COPY startup.sh /root
-
-WORKDIR /radio
-
-ENTRYPOINT [ "/bin/bash", "/root/startup.sh" ]		#run live
+ENTRYPOINT [ "/bin/bash", "/code/capture/adsb-gr-burst-capture/startup.sh" ]		#run live

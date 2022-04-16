@@ -1,7 +1,5 @@
 FROM python:3
 
-WORKDIR /code
-
 #avoid questions when installing stuff in apt-get
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -11,7 +9,10 @@ RUN apt-get update && apt-get install -y libhdf5-103 libhdf5-dev
 #install pip dependencies (inc. building *old* h5py)
 RUN pip3 install numpy matplotlib pyModeS h5py==2.10.0 zmq
 
-COPY code/store.py /code
+#copy in the codebase
+WORKDIR /
+RUN mkdir /code
+COPY code /code
 
-ENTRYPOINT ["python3", "store.py"]
+ENTRYPOINT ["python3", "/code/storage/adsb-demod-msg-storage/code/store.py"]
 

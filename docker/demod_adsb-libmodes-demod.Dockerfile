@@ -17,7 +17,8 @@ COPY code /code
 #RUN find / -name arrayobject.h
 
 #set up pylibmodes (linking to install numpy headers first)
-RUN ln -s "/usr/local/lib/python3.9/site-packages/numpy/core/include/numpy" "/usr/local/include/python3.9/numpy"
+#RUN ln -s "/usr/local/lib/python3.9/site-packages/numpy/core/include/numpy" "/usr/local/include/python3.9/numpy"
+RUN ln -s "/usr/local/lib/python3.10/site-packages/numpy/core/include/numpy" "/usr/local/include/python3.10/numpy"
 RUN cd /code/demod/adsb-libmodes-demod/code/libmodes && python3 setup.py install
 
 #set up pySDRBurstfile
