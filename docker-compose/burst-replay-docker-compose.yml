@@ -1,24 +1,14 @@
 version: "3.3"
-networks:
-        streaming:
-                driver: bridge
-                ipam:
-                        driver: default
-                        config:
-                                - subnet: 185.18.0.0/24
 services:
         replay:
                 build:
                         context: ..
                         dockerfile: docker/supporting_replay_burst-msg-replay.Dockerfile
-                networks:
-                        streaming:
-                                ipv4_address: 185.18.0.4
                 volumes:
                         - /home/richard/apf-docker-test/data:/data
                 stdin_open: true
                 tty: true
-                entrypoint: ["python3", "code/supporting/replay/burst-msg-replay/code/replay.py", "tcp://185.18.0.4:5678", "/data/adsb-stream-compose.hdf5", "ADS-B"]
+                entrypoint: ["python3", "code/supporting/replay/burst-msg-replay/code/replay.py", "tcp://0.0.0.0:5678", "/data/adsb-stream-compose.hdf5", "ADS-B"]
                 depends_on:
                         - filtering
                         - fingerprinting
@@ -27,35 +17,26 @@ services:
                 build:
                         context: ..
                         dockerfile: docker/filtering_adsb-position-msg-filter.Dockerfile
-                networks:
-                        streaming:
-                                ipv4_address: 185.18.0.5
                 volumes:
                         - /home/richard/apf-docker-test/data:/data
                 stdin_open: true
                 tty: true
-                entrypoint: ["python3", "/code/filtering/adsb-position-msg-filter/code/filter.py", "tcp://185.18.0.4:5678", "tcp://185.18.0.5:5678"]
+                entrypoint: ["python3", "/code/filtering/adsb-position-msg-filter/code/filter.py", "tcp://replay:5678", "tcp://0.0.0.0:5678"]
         fingerprinting:
                 build:
                         context: ..
                         dockerfile: docker/fingerprinting_adsb-siamese.Dockerfile
-                networks:
-                        streaming:
-                                ipv4_address: 185.18.0.6
                 volumes:
                         - /home/richard/apf-docker-test/data:/data
                 stdin_open: true
                 tty: true
-                entrypoint: ["python3", "/code/fingerprinting/adsb-siamese/fingerprinter.py", "tcp://185.18.0.5:5678", "tcp://185.18.0.6:5678", "/code/fingerprinting/adsb-siamese/models/siamese-hisamp-94percent.h5", "/data/fingerprint-msgs.sqlite3"]
+                entrypoint: ["python3", "/code/fingerprinting/adsb-siamese/fingerprinter.py", "tcp://filtering:5678", "tcp://0.0.0.0:5678", "/code/fingerprinting/adsb-siamese/models/siamese-hisamp-94percent.h5", "/data/fingerprint-msgs.sqlite3"]
         storage-verified:
                 build:
                         context: ..
                         dockerfile: docker/storage_adsb-verified-msg-storage.Dockerfile
-                networks:
-                        streaming:
-                                ipv4_address: 185.18.0.8
                 volumes:
                         - /home/richard/apf-docker-test/data:/radio
                 stdin_open: true
                 tty: true
-                entrypoint: ["python3", "/code/storage/adsb-verified-msg-storage/code/store.py", "tcp://185.18.0.6:5678", "/radio/adsb-stream-compose.sqlite3", "ADS-B"]
+                entrypoint: ["python3", "/code/storage/adsb-verified-msg-storage/code/store.py", "tcp://fingerprinting:5678", "/radio/adsb-stream-compose.sqlite3", "ADS-B"]

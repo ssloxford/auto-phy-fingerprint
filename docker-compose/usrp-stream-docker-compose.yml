@@ -1,54 +1,36 @@
 version: "3.3"
-networks:
-        streaming:
-                driver: bridge
-                ipam:
-                        driver: default
-                        config:
-                                - subnet: 172.31.0.0/24
 services:
         capture:
                 build:
                         context: ..
                         dockerfile: docker/capture_adsb-gr-burst-capture.Dockerfile
-                networks:
-                        streaming:
-                                ipv4_address: 172.31.0.3
                 privileged: true
                 volumes:
                         - /dev:/dev
                         - /proc:/proc
                         - /home/richard/apf-docker-test/data:/radio
-#               ports:
-#                       - "2225:22"
                 stdin_open: true
                 tty: true
         demod:
                 build:
                         context: ..
                         dockerfile: docker/demod_adsb-libmodes-demod.Dockerfile
-                networks:
-                        streaming:
-                                ipv4_address: 172.31.0.4
                 volumes:
                         - /home/richard/apf-docker-test/data:/radio
                 stdin_open: true
                 tty: true
-                entrypoint: ["python3", "/code/demod/adsb-libmodes-demod/code/stream_bursts_via_libmodes.py", "tcp://172.31.0.3:5678", "tcp://172.31.0.4:5678"]
+                entrypoint: ["python3", "/code/demod/adsb-libmodes-demod/code/stream_bursts_via_libmodes.py", "tcp://capture:5678", "tcp://0.0.0.0:5678"]
                 depends_on:
                         - capture
         filtering:
                 build:
                         context: ..
                         dockerfile: docker/filtering_adsb-position-msg-filter.Dockerfile
-                networks:
-                        streaming:
-                                ipv4_address: 172.31.0.5
                 volumes:
                         - /home/richard/apf-docker-test/data:/data
                 stdin_open: true
                 tty: true
-                entrypoint: ["python3", "/code/filtering/adsb-position-msg-filter/code/filter.py", "tcp://172.31.0.4:5678", "tcp://172.31.0.5:5678"]
+                entrypoint: ["python3", "/code/filtering/adsb-position-msg-filter/code/filter.py", "tcp://demod:5678", "tcp://0.0.0.0:5678"]
                 depends_on:
                         - capture
                         - demod
@@ -56,14 +38,11 @@ services:
                 build:
                         context: ..
                         dockerfile: docker/fingerprinting_adsb-siamese.Dockerfile
-                networks:
-                        streaming:
-                                ipv4_address: 172.31.0.6
                 volumes:
                         - /home/richard/apf-docker-test/data:/data
                 stdin_open: true
                 tty: true
-                entrypoint: ["python3", "/code/fingerprinting/adsb-siamese/fingerprinter.py", "tcp://172.31.0.5:5678", "tcp://172.31.0.6:5678", "/code/fingerprinting/adsb-siamese/models/siamese-hisamp-94percent.h5", "/data/fingerprint-msgs.sqlite3"]
+                entrypoint: ["python3", "/code/fingerprinting/adsb-siamese/fingerprinter.py", "tcp://filtering:5678", "tcp://0.0.0.0:5678", "/code/fingerprinting/adsb-siamese/models/siamese-hisamp-94percent.h5", "/data/fingerprint-msgs.sqlite3"]
                 depends_on:
                         - capture
                         - demod
@@ -72,14 +51,11 @@ services:
                 build:
                         context: ..
                         dockerfile: docker/storage_adsb-demod-msg-storage.Dockerfile
-                networks:
-                        streaming:
-                                ipv4_address: 172.31.0.7
                 volumes:
                         - /home/richard/apf-docker-test/data:/radio
                 stdin_open: true
                 tty: true
-                entrypoint: ["python3", "/code/storage/adsb-demod-msg-storage/code/store.py", "tcp://172.31.0.4:5678", "/radio/adsb-stream-compose.hdf5", "ADS-B"]
+                entrypoint: ["python3", "/code/storage/adsb-demod-msg-storage/code/store.py", "tcp://demod:5678", "/radio/adsb-stream-compose.hdf5", "ADS-B"]
                 depends_on:
                         - capture
                         - demod
@@ -87,14 +63,11 @@ services:
                 build:
                         context: ..
                         dockerfile: docker/storage_adsb-verified-msg-storage.Dockerfile
-                networks:
-                        streaming:
-                                ipv4_address: 172.31.0.8
                 volumes:
                         - /home/richard/apf-docker-test/data:/radio
                 stdin_open: true
                 tty: true
-                entrypoint: ["python3", "/code/storage/adsb-verified-msg-storage/code/store.py", "tcp://172.31.0.6:5678", "/radio/adsb-stream-compose.sqlite3", "ADS-B"]
+                entrypoint: ["python3", "/code/storage/adsb-verified-msg-storage/code/store.py", "tcp://fingerprinting:5678", "/radio/adsb-stream-compose.sqlite3", "ADS-B"]
                 depends_on:
                         - capture
                         - demod
@@ -104,16 +77,13 @@ services:
                 build:
                         context: ..
                         dockerfile: docker/visualisation_adsb-positions.Dockerfile
-                networks:
-                        streaming:
-                                ipv4_address: 172.31.0.9
                 ports:
                         - "5006:5006"
                 volumes:
                         - /home/richard/apf-docker-test/data:/radio
                 stdin_open: true
                 tty: true
-                entrypoint: ["bokeh", "serve", "/code/visualisation/adsb-positions/code", "--allow-websocket-origin=experimentsbox.local:5006", "--args", "--recv_connect_addr", "tcp://172.31.0.6:5678", "--topic", "ADS-B"]
+                entrypoint: ["bokeh", "serve", "/code/visualisation/adsb-positions/code", "--allow-websocket-origin=experimentsbox.local:5006", "--args", "--recv_connect_addr", "tcp://fingerprinting:5678", "--topic", "ADS-B"]
                 depends_on:
                         - capture
                         - demod
@@ -123,9 +93,6 @@ services:
                 build:
                         context: ..
                         dockerfile: docker/supporting_weather.Dockerfile
-                networks:
-                        streaming:
-                                ipv4_address: 172.31.0.10
                 volumes:
                         - /home/richard/apf-docker-test/data:/data
                 stdin_open: true
