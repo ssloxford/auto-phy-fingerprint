@@ -1,0 +1,3 @@
+[submodule "code/demod/adsb-libmodes-demod/code/libmodes"]
+	path = code/demod/adsb-libmodes-demod/code/libmodes
+	url = https://github.com/ssloxford/libmodes
