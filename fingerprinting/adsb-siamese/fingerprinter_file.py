@@ -114,6 +114,17 @@ def shuffle_in_unison_scary(a, b):
 
 #########################################
 
+# Fingerprinting method
+# 'first': First received message
+# 'bestN': Best out of first fp_n received messages
+#          Fingerprint is the message that maximises the similarity to the other messages out of the first 10 received messages
+# 'centroidN': Centroid of first fp_n received messages
+fp_method = 'centroidN'
+
+# Multi-fingerprint config and setup
+fp_dict = {}  # Temporary message storage until fingerprint is computed
+fp_n = 10  # Number of messages considered for fingerprint
+assert(fp_method is 'first' or fp_n > 0)
 
 #get the model ready
 print("Beginning ML")
@@ -136,22 +147,35 @@ if gpus:
 		# Memory growth must be set before GPUs have been initialized
 		print(e)
 
+#from tensorflow.python.framework import ops
+
+#ops.disable_eager_execution()
+#if tf.executing_eagerly():
+#	print("Warning: Eager execution is still enabled, performance will be severely impacted")
 
 
 print("Loading model")
 #model = models.load_model("/data/mlsdr/siamese-hisamp.h5")
-model = models.load_model("models/siamese-hisamp.h5")
+model = models.load_model("models/siamese-hisamp-94percent.h5")
 
-#extract the fingerprint generating model
-#model.summary()
+# Extract the fingerprint generating model
 fingerprint_model = models.Model(inputs=model.layers[2].input, outputs=model.layers[2].output)
-#fingerprint_model.summary()
+fingerprint_input = layers.Input(shape=(256,), name="fp_input")
+
+# Create helper model for new messages
+helper_model = models.Model(inputs=[fingerprint_model.input], outputs=[fingerprint_model.call(fingerprint_model.input)])
+
+# Pipe saved fingerprint and new message through final layers
+prediction = model.layers[4](model.layers[3]([fingerprint_input, helper_model.output]))
+
+# Connect the inputs with the outputs
+verification_model = models.Model(inputs=[fingerprint_input, fingerprint_model.input], outputs=prediction)
 
 print("Fingerprinting messages")
 
 oversampling_factor = 10
 if len(sys.argv) < 2:
-	h5siamese_filename = "/data/mlsdr/adsb_20000000.0_1617071599-df17.hdf5"
+	h5siamese_filename = "/data/adsb-8er-jan2022.hdf5"
 	#h5siamese_filename = "/data/mlsdr/adsb_rhb_20000000.0_1617410604-df17.hdf5"
 else:
 	h5siamese_filename = sys.argv[1]
@@ -175,17 +199,78 @@ for msgi in range(case_count):
 	
 	#if we have no previous fingerprint, then just save
 	if claimedicao not in known_aircraft:
-		#generate fingerprint
-		#fp = fingerprint_model.predict(msg.reshape(1, 2400, 2))
-		#known_aircraft[claimedicao] = fp
-		#print("New aircraft {}, stored fingerprint".format(fp))
-		
-		known_aircraft[claimedicao] = msg
+		save_fp = False
+		fp = None
+		if fp_method is 'centroidN':
+			if fp_n == 1:
+				fp = fingerprint_model.predict([msg.reshape(1, 2400, 2)])
+				save_fp = True
+			elif claimedicao not in fp_dict:
+				fp_dict[claimedicao] = [fingerprint_model.predict([msg.reshape(1, 2400, 2)])]
+			elif len(fp_dict[claimedicao]) < fp_n - 1:
+				fp_dict[claimedicao].append(fingerprint_model.predict([msg.reshape(1, 2400, 2)]))
+			else:
+				fp_dict[claimedicao].append(fingerprint_model.predict([msg.reshape(1, 2400, 2)]))
+				fp = np.mean(fp_dict[claimedicao], axis=0)
+				del fp_dict[claimedicao]
+				save_fp = True
+		elif fp_method is 'bestN':
+			if fp_n == 1:
+				fp = msg
+				save_fp = True
+			elif claimedicao not in fp_dict:
+				fp_dict[claimedicao] = [msg]
+			elif len(fp_dict[claimedicao]) < fp_n - 1:
+				fp_dict[claimedicao].append(msg)
+			else:
+				fp_dict[claimedicao].append(msg)
+				fp_list = []
+				for i, m in enumerate(fp_dict[claimedicao]):
+					fp_result = 0
+					for j, m_ in enumerate(fp_dict[claimedicao]):
+						if i == j:
+							continue
+						fp_result += model.predict([m.reshape(1, waveform_len, feature_count),
+													m_.reshape(1, waveform_len, feature_count)]).flatten()[0]
+					fp_list.append(fp_result)
+				max_ = max(fp_list)
+				fp = fp_dict[claimedicao][fp_list.index(max_)]
+				del fp_dict[claimedicao]
+				save_fp = True
+		elif fp_method is 'first':
+			fp = msg
+			save_fp = True
+		else:
+			raise ValueError('Invalid fingerprinting method given')
+		if save_fp:
+			assert fp is not None
+			known_aircraft[claimedicao] = fp
+			result_logs[claimedicao] = []
+	#generate fingerprint
+	#fp = fingerprint_model.predict(msg.reshape(1, 2400, 2))
+	#known_aircraft[claimedicao] = fp
+	#print("New aircraft {}, stored fingerprint".format(fp))
+
+		#known_aircraft[claimedicao] = msg
 		#print("New aircraft {}, stored MESSAGE".format(claimedicao))
-		result_logs[claimedicao] = []
+		#result_logs[claimedicao] = []
 	else:	#otherwise check the fingerprint
-		compare_result = model.predict([msg.reshape(1, 2400, 2), known_aircraft[claimedicao].reshape(1, 2400, 2)])
-		match = compare_result.flatten()[0]>0.5
+		#fp_model = models.Model(inputs=model.layers[2].input, outputs=model.layers[2].output)
+		#test_fp = fingerprint_model.predict([msg.reshape(1, 2400, 2)])
+		#test = verification_model.predict([test_fp,known_aircraft[claimedicao].reshape(1, 2400, 2)])
+		#compare_result = model.predict([msg.reshape(1, 2400, 2), known_aircraft[claimedicao].reshape(1, 2400, 2)])
+		if fp_method is 'first':
+			compare_result = model.predict([msg.reshape(1, 2400, 2), known_aircraft[claimedicao].reshape(1, 2400, 2)])
+			match = compare_result.flatten()[0]>0.5
+		elif fp_method is 'bestN':
+			compare_result = model.predict([msg.reshape(1, 2400, 2), known_aircraft[claimedicao].reshape(1, 2400, 2)])
+			match = compare_result.flatten()[0]>0.5
+		elif fp_method is 'centroidN':
+			result = model.predict([msg.reshape(1, 2400, 2), msg.reshape(1, 2400, 2)])
+			compare_result = verification_model([known_aircraft[claimedicao], msg.reshape(1, 2400, 2)])
+			match = compare_result.numpy().flatten()[0]>0.5
+		else:
+			raise ValueError('Invalid fingerprinting method given')
 		#print("Message for {} matches: {}".format(claimedicao, match))
 		results[match] += 1
 		result_logs[claimedicao].append(match)
