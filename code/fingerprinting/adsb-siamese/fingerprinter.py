@@ -9,6 +9,7 @@ import time
 import common.tf_tweak as tf_tweak
 import common.dataset as dataset
 import common.constants as constants
+from common.mq_utils import ZmqSub, ZmqPub
 
 from datetime import datetime
 import sqlalchemy as db
@@ -44,7 +45,7 @@ class FingerprintDB:
 		fpm = dbFingerprintMessage()
 		fpm.icao = key
 		fpm.fp_msg = pickle.dumps(value)
-		fpm.msguuid = jmeta["uuid"]
+		fpm.msguuid = meta["uuid"]
 		fpm.savetime_coarse = savetime
 		fpm.savetime_coarse_dt = datetime.fromtimestamp(savetime)#.isoformat(sep=" ")
 
@@ -60,8 +61,9 @@ ap.add_argument("recv_connect_addr", type=str, help="Connect address of upstream
 ap.add_argument("send_bind_addr", type=str, help="Bind address for ZMQ PUB")
 ap.add_argument("model_file", type=str, help="Filename from which to load the model")
 ap.add_argument("database_filename", type=str, help="Filename for SQLite3 file in which to store fingerprints")
+#TODO: topic to subscribe to
+#TODO: MQ choice
 args = ap.parse_args()
-
 
 #get the model ready
 logging.info("Loading Tensorflow")
@@ -91,18 +93,9 @@ Session = db.orm.sessionmaker(bind=engine)
 session = Session()
 
 logging.info("Initialising ZMQ")
-context = zmq.Context()
-
-logging.info(f"Setting up ZMQ SUB socket connecting to {args.recv_connect_addr}")
-insocket = context.socket(zmq.SUB)
-insocket.connect(args.recv_connect_addr)
+insocket = ZmqSub(args.recv_connect_addr)
 insocket.subscribe("ADS-B")
-
-logging.info(f"Setting up ZMQ PUB socket at {args.send_bind_addr}")
-outsocket = context.socket(zmq.PUB)
-outsocket.setsockopt(zmq.SNDHWM, 1024)	#1024 messages ~= 32MiB if burst is 4096 complex samples long
-#outsocket.setsockopt(zmq.SNDBUF, 1024*1024)		#based on default max buffer allowed in Ubuntu 20.04
-outsocket.bind(args.send_bind_addr)
+outsocket = ZmqPub(args.send_bind_addr)
 
 
 #config for input rate
@@ -122,19 +115,15 @@ msg_count = 0
 while True:
 	(topic, meta, burst) = (None, None, None)		#be on the safe side and break quickly if no new message received in some weird way, don't continue with old values
 	if insocket.poll(10) != 0: # check if there is a message on the socket
-		(topic, meta, burst) = insocket.recv_multipart()
-		logging.debug(f"Received message of len {len(topic) + len(meta) + len(burst)} bytes")
+		(topic, meta, burst) = insocket.recv()
 	else:
 		time.sleep(0.05) # wait 100ms and try again
 		continue
 
-	#get metadata
-	jmeta = json.loads(meta)
-
-	msguuid = jmeta["uuid"]
+	msguuid = meta["uuid"]
 	logging.debug(f"Message UUID: {msguuid}")
 
-	claimedicao = jmeta["decode.msg"][2:8]						#TODO: this should probably be provided by the demod, as it's so easy to get there
+	claimedicao = meta["decode.msg"][2:8]						#TODO: this should probably be provided by the demod, as it's so easy to get there
 	logging.debug(f"Extracted ICAO: {claimedicao}")
 
 	logging.debug("Masking identifier(s)")
@@ -169,12 +158,11 @@ while True:
 
 	logging.debug("Annotating verification and passing message downstream")
 	topic = b"ADS-B"
-	jmeta["verify.status"] = verif_status
-	newmeta = json.dumps(jmeta).encode("utf-8")
+	meta["verify.status"] = verif_status
+	#newmeta = json.dumps(jmeta).encode("utf-8")
 	outdata = burst			#pass on the original, not our masked copy
-	outsocket.send_multipart([topic, newmeta, outdata])
-
-	logging.debug(f"Sent message of len {len(topic) + len(newmeta) + len(outdata)} bytes")
+	#outsocket.send_multipart([topic, newmeta, outdata])
+	outsocket.publish(topic, meta, outdata)
 
 	if msg_count % 100 == 0:
 		logging.info(f"Verification stats: {results}")
