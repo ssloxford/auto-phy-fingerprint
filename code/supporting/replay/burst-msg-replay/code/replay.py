@@ -8,6 +8,7 @@ import json
 import argparse
 import h5py
 import signal
+import uuid
 
 ###########################
 
@@ -55,7 +56,10 @@ for bursti in range(record_count):
     #burst = burst_real.astype(np.complex64) +
     #identifier = inf["outds"][bursti]
     msg = inf["meta_datahex"][bursti].tobytes().decode("utf-8")
-    msguuid = inf["meta_uuid"][bursti].tobytes().decode("utf-8")
+    if "meta_uuid" in inf:
+        msguuid = inf["meta_uuid"][bursti].tobytes().decode("utf-8")
+    else:
+        msguuid = str(uuid.uuid4())
     if "meta_msgtime" in inf:
         msgtime = inf["meta_msgtime"][bursti]
     else:
