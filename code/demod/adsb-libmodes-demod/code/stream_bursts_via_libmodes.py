@@ -67,6 +67,10 @@ while True:
 	if len(b) >= 19200:										# 240 * 10x decimation * 8 bytes complex64 (could pad with zeros instead to get short bursts out (e.g. 56-bit ones, which might still be interesting))
 
 		z = np.frombuffer(b, dtype=np.complex64)
+
+		#bit of a hack to fix a problem found when reprocessing -- exactly aligned messages don't get picked up, the demodulator needs some samples
+		if len(z) == 2400:
+			z = np.concatenate((np.zeros(100, dtype=np.complex64), z, np.zeros(100, dtype=np.complex64)))
 		DECIMATION = 10
 		x = decimate(z, DECIMATION)
 
