@@ -11,6 +11,7 @@ import numpy as np
 import time
 import matplotlib.pyplot as plt
 import json
+import uuid
 
 class UARTDecoder:
 	def decode(self, chA, chB):
@@ -166,6 +167,7 @@ while True:
 		
 		meta = json.loads(jmeta)
 		realdata = meta["msg"]
+		msguuid = meta["uuid"]				#take the uuid and distribute it across all the byte sub-bursts within this one 12-byte burst
 		(decodedata, extract_points) = UARTDecoder().decode(chA, chB)
 		logging.debug(f"{realdata} vs. {decodedata} -> {realdata == decodedata}")
 		
@@ -186,6 +188,8 @@ while True:
 			meta["decode.msg"] = decodedata
 			meta["decode.bytenum"] = seci
 			meta["decode.msgbyte"] = decodedata[seci*2:(seci+1)*2]
+			meta["decode.msguuid"] = msguuid						#as one burst has been split, we link them with the same msguuid (the original uuid of the full burst)
+			meta["uuid"] = str(uuid.uuid4())						#a new uuid value is given to each new byte, to keep the behaviour that it is globally unique for a burst
 			jmeta = json.dumps(meta)
 			out_socket.send_multipart((topic, jmeta.encode("utf-8"), secA.tobytes(), secB.tobytes()))
 		

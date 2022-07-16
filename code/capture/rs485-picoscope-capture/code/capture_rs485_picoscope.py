@@ -7,6 +7,7 @@ import time
 import os
 import zmq
 import json
+import uuid
 
 from PicoScope5000Wrapper import PicoScope5000
 from TTYIdentifier import TTYIdentifier
@@ -83,6 +84,8 @@ for runi in range(NUM_OF_RUNS):
 		metaj["source"] = "capture-rs485-picoscope"
 		metaj["tx"] = device_id["deviceid"]
 		metaj["msg"] = msg.hex()
+		metaj["rxtime"] = str(time.time())
+		metaj["uuid"] = str(uuid.uuid4())
 		
 		topic = b"RS-485"
 		meta = json.dumps(metaj).encode("utf-8")

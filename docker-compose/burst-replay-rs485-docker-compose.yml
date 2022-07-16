@@ -1,0 +1,36 @@
+version: "3.3"
+services:
+        replay:
+                build:
+                        context: ..
+                        dockerfile: docker/supporting_replay_burst-msg-replay.Dockerfile
+                volumes:
+                        - ${DATADIR}:/data
+                stdin_open: true
+                tty: true
+                entrypoint: ["python3", "code/supporting/replay/burst-msg-replay/code/replay.py", "tcp://0.0.0.0:5678", "/data/rs485-test.hdf5", "RS-485"]
+                depends_on:
+                        - fingerprinting
+        fingerprinting:
+                build:
+                        context: ..
+                        dockerfile: docker/fingerprinting_rs485-siamese.Dockerfile
+                volumes:
+                        - ${DATADIR}:/data
+                stdin_open: true
+                tty: true
+                #entrypoint: ["python3", "code/fingerprinting/rs485-siamese/fingerprinter.py", "tcp://replay:5678", "tcp://0.0.0.0:5678", "/code/fingerprinting/rs485-siamese/models/rs485-siamese.h5", "/data/fingerprint-msgs-rs485.sqlite3", "FIRST"]
+                entrypoint: ["python3", "code/fingerprinting/rs485-siamese/fingerprinter.py", "tcp://replay:5678", "tcp://0.0.0.0:5678", "/data/rs485-test-model.h5", "/data/fingerprint-msgs-rs485.sqlite3", "FIRST"]
+        visualisation:
+                build:
+                        context: ..
+                        dockerfile: docker/visualisation_adsb-positions.Dockerfile
+                ports:
+                        - "5006:5006"
+                volumes:
+                        - ${DATADIR}:/radio
+                stdin_open: true
+                tty: true
+                entrypoint: ["bokeh", "serve", "/code/visualisation/rs485-stats/code", "--allow-websocket-origin=localhost:5006", "--args", "--recv_connect_addr", "tcp://fingerprinting:5678", "--topic", "RS-485"]
+                depends_on:
+                        - fingerprinting

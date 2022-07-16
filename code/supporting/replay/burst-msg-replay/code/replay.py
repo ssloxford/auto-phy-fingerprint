@@ -17,9 +17,8 @@ logging.basicConfig(format='%(asctime)s:%(name)s:%(levelname)s|%(message)s', lev
 ap = argparse.ArgumentParser(description="Replay an HDF5 file of bursts.")
 ap.add_argument("send_bind_addr", type=str, help="Address to bind and publish from as ZMQ PUB")
 ap.add_argument("dataset_filename", type=str, help="Filename for HDF5 file")
-ap.add_argument("topic", type=str, help="Topic to publish to")
+ap.add_argument("topic", type=str, default="ADS-B", help="Topic to publish to")
 args = ap.parse_args()
-
 
 logging.info(f"Opening HDF5 file at {args.dataset_filename}")
 inf = h5py.File(args.dataset_filename, "r")
@@ -61,9 +60,17 @@ for bursti in range(record_count):
     else:
         msguuid = str(uuid.uuid4())
     if "meta_msgtime" in inf:
-        msgtime = inf["meta_msgtime"][bursti]
+        msgtime = float(inf["meta_msgtime"][bursti][0])
     else:
         msgtime = 0
+    if "meta_raw" in inf:
+        msg_rawmeta = inf["meta_raw"][bursti]
+    else:
+        msg_rawmeta = None
+    if "meta_byteindex" in inf:
+        msg_byteindex = str(inf["meta_byteindex"][bursti][0])
+    else:
+        msg_byteindex = None
 
     #iterate over other dataset_names
     #build a message
@@ -72,8 +79,8 @@ for bursti in range(record_count):
 
 
     logging.debug("Annotating verification and passing message downstream")
-    topic = b"ADS-B"
-    jmeta = { "decode.msg": msg, "uuid": msguuid, "msgtime": msgtime }
+    topic = args.topic.encode("utf-8")
+    jmeta = { "decode.msg": msg, "uuid": msguuid, "msgtime": msgtime, "trueid": inf["outds"][bursti][0].tobytes().decode("utf-8"), "byteindex": msg_byteindex, "rawmeta": msg_rawmeta }
     newmeta = json.dumps(jmeta).encode("utf-8")
     outdata = burst			#pass on the original, not our masked copy
     outsocket.send_multipart([topic, newmeta, outdata])
@@ -82,6 +89,7 @@ for bursti in range(record_count):
 
     #time.sleep(0.1)
     time.sleep(0.05)
+    #time.sleep(0.02)
 
     if bursti % 10 == 0:
         logging.info(f"Replayed {bursti} bursts")

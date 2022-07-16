@@ -1,0 +1,1 @@
+docker run -it --rm -p 5006:5006 -v /home/sdr/auto-phy-fingerprint-mountdir:/radio --name autophyfp-visualisation-adsb-positions autophyfp-visualisation-adsb-positions --allow-websocket-origin="experimentsbox.local:5006" --args --recv_connect_addr $1 --topic $2

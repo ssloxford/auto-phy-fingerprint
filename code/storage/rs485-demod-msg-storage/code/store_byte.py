@@ -40,6 +40,7 @@ if not "inds" in outf and "outds" not in outf and "meta_datahex" not in outf:
 	outf.create_dataset("meta_datahex", shape=(1, 1), maxshape=(None, 1), dtype="S2")			#2 characters as each byte is 2 hex chars
 	outf.create_dataset("meta_byteindex", shape=(1, 1), maxshape=(None, 1), dtype=int)
 	outf.create_dataset("meta_storetime", shape=(1, 1), maxshape=(None, 1), dtype=np.float64)	#needs to be float64 or it'll truncate the storage time (to 128s resolution)
+	outf.create_dataset("meta_raw", shape=(1, 1), maxshape=(None, 1), dtype=str)				#write the whole json metadata there
 	bursti = 0
 else:
 	bursti = outf["inds"].shape[0]
@@ -67,6 +68,7 @@ while True:
 		outf["meta_datahex"].resize(bursti+1, axis=0)
 		outf["meta_byteindex"].resize(bursti+1, axis=0)
 		outf["meta_storetime"].resize(bursti+1, axis=0)
+		outf["meta_raw"].resize(bursti+1, axis=0)
 
 	outf["inds"][bursti,:,0] = burstA
 	outf["inds"][bursti,:,1] = burstB
@@ -74,7 +76,8 @@ while True:
 	outf["meta_datahex"][bursti,:] = np.string_(jmeta["decode.msgbyte"])
 	outf["meta_byteindex"][bursti,:] = int(jmeta["decode.bytenum"])
 	outf["meta_storetime"][bursti,:] = time.time()
-	
+	outf["meta_raw"][bursti,:] = meta.decode("utf-8")
+
 	bursti += 1
 	
 	if bursti % 100 == 0:
