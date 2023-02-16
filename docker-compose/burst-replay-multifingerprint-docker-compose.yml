@@ -1,0 +1,96 @@
+version: "3.3"
+services:
+        replay:
+                build:
+                        context: ..
+                        dockerfile: docker/supporting_replay_burst-msg-replay.Dockerfile
+                volumes:
+                        - ${DATADIR}:/data
+                stdin_open: true
+                tty: true
+                entrypoint: ["python3", "code/supporting/replay/burst-msg-replay/code/replay.py", "tcp://0.0.0.0:5678", "/data/${REPLAY_FILE:?err}", "ADS-B"]
+                depends_on:
+                        - filtering
+                        - fingerprinting-first
+                        - fingerprinting-bestn
+                        - fingerprinting-centroid
+                        - storage-verified-first
+                        - storage-verified-bestn
+                        - storage-verified-centroid
+        filtering:
+                build:
+                        context: ..
+                        dockerfile: docker/filtering_adsb-position-msg-filter.Dockerfile
+                volumes:
+                        - ${DATADIR}:/data
+                stdin_open: true
+                tty: true
+                entrypoint: ["python3", "/code/filtering/adsb-position-msg-filter/code/filter.py", "tcp://replay:5678", "tcp://0.0.0.0:5678"]
+                depends_on:
+                        - fingerprinting-first
+                        - fingerprinting-bestn
+                        - fingerprinting-centroid
+                        - storage-verified-first
+                        - storage-verified-bestn
+                        - storage-verified-centroid
+        fingerprinting-first:
+                build:
+                        context: ..
+                        dockerfile: docker/fingerprinting_adsb-siamese.Dockerfile
+                volumes:
+                        - ${DATADIR}:/data
+                stdin_open: true
+                tty: true
+                entrypoint: ["python3", "/code/fingerprinting/adsb-siamese/fingerprinter.py", "tcp://filtering:5678", "tcp://0.0.0.0:5678", "/code/fingerprinting/adsb-siamese/models/siamese-hisamp-94percent.h5", "/data/${REPLAY_FILE:?err}-fingerprint-msgs-first.sqlite3", "FIRST"]
+                depends_on:
+                        - storage-verified-first
+        storage-verified-first:
+                build:
+                        context: ..
+                        dockerfile: docker/storage_adsb-verified-msg-storage.Dockerfile
+                volumes:
+                        - ${DATADIR}:/radio
+                stdin_open: true
+                tty: true
+                entrypoint: ["python3", "/code/storage/adsb-verified-msg-storage/code/store.py", "tcp://fingerprinting-first:5678", "/radio/${REPLAY_FILE:?err}-first.sqlite3", "ADS-B"]
+        fingerprinting-bestn:
+                build:
+                        context: ..
+                        dockerfile: docker/fingerprinting_adsb-siamese.Dockerfile
+                volumes:
+                        - ${DATADIR}:/data
+                stdin_open: true
+                tty: true
+                entrypoint: ["python3", "/code/fingerprinting/adsb-siamese/fingerprinter.py", "tcp://filtering:5678", "tcp://0.0.0.0:5678", "/code/fingerprinting/adsb-siamese/models/siamese-hisamp-94percent.h5", "/data/${REPLAY_FILE:?err}-fingerprint-msgs-bestn.sqlite3", "BESTN"]
+                depends_on:
+                        - storage-verified-bestn
+        storage-verified-bestn:
+                build:
+                        context: ..
+                        dockerfile: docker/storage_adsb-verified-msg-storage.Dockerfile
+                volumes:
+                        - ${DATADIR}:/radio
+                stdin_open: true
+                tty: true
+                entrypoint: ["python3", "/code/storage/adsb-verified-msg-storage/code/store.py", "tcp://fingerprinting-bestn:5678", "/radio/${REPLAY_FILE:?err}-bestn.sqlite3", "ADS-B"]
+        fingerprinting-centroid:
+                build:
+                        context: ..
+                        dockerfile: docker/fingerprinting_adsb-siamese.Dockerfile
+                volumes:
+                        - ${DATADIR}:/data
+                stdin_open: true
+                tty: true
+                entrypoint: ["python3", "/code/fingerprinting/adsb-siamese/fingerprinter.py", "tcp://filtering:5678", "tcp://0.0.0.0:5678", "/code/fingerprinting/adsb-siamese/models/siamese-hisamp-94percent.h5", "/data/${REPLAY_FILE:?err}-fingerprint-msgs-centroid.sqlite3", "CENTROID"]
+                depends_on:
+                        - storage-verified-centroid
+        storage-verified-centroid:
+                build:
+                        context: ..
+                        dockerfile: docker/storage_adsb-verified-msg-storage.Dockerfile
+                volumes:
+                        - ${DATADIR}:/radio
+                stdin_open: true
+                tty: true
+                entrypoint: ["python3", "/code/storage/adsb-verified-msg-storage/code/store.py", "tcp://fingerprinting-centroid:5678", "/radio/${REPLAY_FILE:?err}-centroid.sqlite3", "ADS-B"]
+

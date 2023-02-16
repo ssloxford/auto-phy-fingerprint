@@ -1,36 +1,110 @@
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1' #0 = all messages are logged (default behavior), 1 = INFO messages are not printed, 2 = INFO and WARNING messages are not printed, 3 = INFO, WARNING, and ERROR messages are not printed
 from tensorflow.keras import models, layers
-import tensorflow as tf
 
 import numpy as np
 
-import common.constants as constants
+import time
+from datetime import datetime
+import sqlalchemy as db
+from sqlalchemy.ext.declarative import declarative_base
+import pickle
+
+Base = declarative_base()
+
+class dbFingerprintMessage(Base):
+	__tablename__ = "fingerprintmsgs"
+	#id = db.Column(db.Integer, primary_key=True)
+	#icao = db.Column(db.String, index=True)
+	icao = db.Column(db.String, index=True, primary_key=True)
+	fp_msg = db.Column(db.LargeBinary)
+	#msguuid = db.Column(db.String)
+	savetime_coarse = db.Column(db.Float)
+	savetime_coarse_dt = db.Column(db.DateTime)
+
+class FingerprintDB:
+	def __init__(self, dbfilename):
+		#logging.info(f"Creating/opening SQLite3 fingerprints file at {args.database_filename}")
+		engine = db.create_engine(f"sqlite:///{dbfilename}")
+		connection = engine.connect()
+		Base.metadata.create_all(engine)
+
+		#logging.info(f"Creating database session")
+		Session = db.orm.sessionmaker(bind=engine)
+		session = Session()
+
+		self.session = session
+
+	def __len__(self):
+		return self.session.query(dbFingerprintMessage).count()
+
+	def __contains__(self, key):
+		return self.session.query(dbFingerprintMessage).filter(dbFingerprintMessage.icao == key).first() is not None
+
+	def get(self, key):
+		found = self.session.query(dbFingerprintMessage).filter(dbFingerprintMessage.icao == key).one()
+		#return (pickle.loads(found.fp_msg), found.msguuid)
+		return pickle.loads(found.fp_msg)
+
+	def store(self, key, value):
+		savetime = time.time()
+
+		fpm = dbFingerprintMessage()
+		fpm.icao = key
+		fpm.fp_msg = pickle.dumps(value)
+		#fpm.msguuid = msguuid
+		fpm.savetime_coarse = savetime
+		fpm.savetime_coarse_dt = datetime.fromtimestamp(savetime)  # .isoformat(sep=" ")
+
+		self.session.add(fpm)
+		self.session.commit()
+
+#	def __getitem__(self, key):
+#		found = self.session.query(dbFingerprintMessage).filter(dbFingerprintMessage.icao == key).one()
+#		return pickle.loads(found.fp_msg)
+#
+#	def __setitem__(self, key, value):
+#		savetime = time.time()
+#
+#		fpm = dbFingerprintMessage()
+#		fpm.icao = key
+#		fpm.fp_msg = pickle.dumps(value)
+#		#fpm.msguuid = meta["uuid"]
+#		fpm.savetime_coarse = savetime
+#		fpm.savetime_coarse_dt = datetime.fromtimestamp(savetime)#.isoformat(sep=" ")
+#
+#		self.session.add(fpm)
+#		self.session.commit()
+
 
 def reshape_single_row(single_row):
 	return single_row.reshape(1, single_row.shape[0], single_row.shape[1])
 
+
 class FirstMsgFingerprinter:
-	def __init__(self, model, unused):
+	def __init__(self, model, dbfilename, _):
 		self.model = model
-		self.known_aircraft = dict()
+		self.known_aircraft = FingerprintDB(dbfilename)
 
 	def fingerprint_msg(self, msg, claimedicao):
 		# if we have no previous fingerprint, then just save
 		if claimedicao not in self.known_aircraft:
-			self.known_aircraft[claimedicao] = msg
+			#self.known_aircraft[claimedicao] = msg
+			self.known_aircraft.store(claimedicao, msg)
 			return None
 		else:  # otherwise check the fingerprint
+			#(ref, _) = self.known_aircraft[claimedicao]
+			ref = self.known_aircraft.get(claimedicao)
 			msg_shaped = reshape_single_row(msg)
-			ref_shaped = reshape_single_row(self.known_aircraft[claimedicao])
+			ref_shaped = reshape_single_row(ref)
 			compare_result = self.model.predict([msg_shaped, ref_shaped])
 			match = compare_result.flatten()[0] > 0.5
 			return match
 
 class BestOfNFingerprinter:
-	def __init__(self, model, fp_n):
+	def __init__(self, model, dbfilename, fp_n):
 		self.model = model
-		self.known_aircraft = dict()
+		self.known_aircraft = FingerprintDB(dbfilename)
 		self.fp_dict = {}  				# Temporary message storage until fingerprint is computed
 		self.fp_n = fp_n  			# Number of messages considered for fingerprint
 
@@ -65,21 +139,23 @@ class BestOfNFingerprinter:
 
 			if save_fp:
 				assert fp is not None
-				self.known_aircraft[claimedicao] = fp
+				#self.known_aircraft[claimedicao] = fp
+				self.known_aircraft.store(claimedicao, fp)
 
 			return None
 		else:  # otherwise check the fingerprint
+			ref = self.known_aircraft.get(claimedicao)
 			msg_shaped = reshape_single_row(msg)
-			ref_shaped = reshape_single_row(self.known_aircraft[claimedicao])
+			ref_shaped = reshape_single_row(ref)
 			compare_result = self.model.predict([msg_shaped, ref_shaped])
 			match = compare_result.flatten()[0] > 0.5
 			return match
 
 
 class CentroidFingerprinter:
-	def __init__(self, model, fp_n):
+	def __init__(self, model, dbfilename, fp_n):
 		self.model = model
-		self.known_aircraft = dict()
+		self.known_aircraft = FingerprintDB(dbfilename)
 
 		self.fp_dict = {}  # Temporary message storage until fingerprint is computed
 		self.fp_n = fp_n  # Number of messages considered for fingerprint
@@ -122,11 +198,20 @@ class CentroidFingerprinter:
 
 			if save_fp:
 				assert fp is not None
-				self.known_aircraft[claimedicao] = fp
+				#self.known_aircraft[claimedicao] = fp
+				self.known_aircraft.store(claimedicao, fp)
 
 			return None
 		else:  # otherwise check the fingerprint
-			compare_result = self.verification_model.predict([self.known_aircraft[claimedicao], reshape_single_row(msg)])
+			ref = self.known_aircraft.get(claimedicao)
+			compare_result = self.verification_model.predict([ref, reshape_single_row(msg)])
 			match = compare_result.flatten()[0] > 0.5
 
 			return match
+
+
+fingerprinter_types = {
+	"FIRST": FirstMsgFingerprinter,
+	"BESTN": BestOfNFingerprinter,
+	"CENTROID": CentroidFingerprinter
+}

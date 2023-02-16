@@ -1,24 +1,23 @@
 import logging
 import argparse
 
+import sqlalchemy as db
+
 import common.tf_tweak as tf_tweak
 import common.dataset as dataset
 import common.constants as constants
-from common.fingerprinting import *
+from common.fingerprinting import fingerprinter_types, FirstMsgFingerprinter, BestOfNFingerprinter, CentroidFingerprinter
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1' #0 = all messages are logged (default behavior), 1 = INFO messages are not printed, 2 = INFO and WARNING messages are not printed, 3 = INFO, WARNING, and ERROR messages are not printed
 from tensorflow.keras import models
 
+from sqlalchemy.ext.declarative import declarative_base
+Base = declarative_base()
+
 #########################################
 
 logging.basicConfig(format='%(asctime)s:%(name)s:%(levelname)s|%(message)s', level=logging.INFO)
-
-fingerprinter_types = {
-	"FIRST": FirstMsgFingerprinter,
-	"BESTN": BestOfNFingerprinter,
-	"CENTROID": CentroidFingerprinter
-}
 
 parser = argparse.ArgumentParser(description="Process a file of bursts, perform verification on each one via a specified model and annotate them with the result.")
 parser.add_argument("input_file", type=str, help="Filename from which to load input bursts for fingerprinting")
@@ -36,7 +35,7 @@ assert args.fingerprint_method in fingerprinter_types
 logging.info("Beginning ML")
 
 tf_tweak.limit_gpu_memory_usage()		#limit use of gpu memory
-tf_tweak.disable_eager_execution()		#disable eager execution mode			#TODO: super slow because of eager, but centroid needs it for now
+tf_tweak.disable_eager_execution()		#disable eager execution mode
 
 logging.info("Loading model")
 model = models.load_model("models/siamese-hisamp-94percent.h5")
@@ -45,6 +44,15 @@ model = models.load_model("models/siamese-hisamp-94percent.h5")
 #model.summary()
 #fingerprint_model = models.Model(inputs=model.layers[2].input, outputs=model.layers[2].output)
 #fingerprint_model.summary()
+
+# logging.info(f"Creating/opening SQLite3 fingerprints file in memory")
+# engine = db.create_engine(f"sqlite://")
+# connection = engine.connect()
+# Base.metadata.create_all(engine)
+#
+# logging.info(f"Creating database session")
+# Session = db.orm.sessionmaker(bind=engine)
+# session = Session()
 
 logging.info("Fingerprinting messages")
 
@@ -60,10 +68,8 @@ known_aircraft = {}
 results = { True: 0, False: 0 }
 result_logs = {}
 
-#fprinter_first = FirstMsgFingerprinter(model)
-#fprinter_bestn = BestOfNFingerprinter(model, 10)
-#fprinter_centroid = CentroidFingerprinter(model, 10)
-fingerprinter = fingerprinter_types[args.fingerprint_method](model, args.fingerprinter_n)
+inmemory_db_url = ""			#so that the url becomes sqlite://, which indicates an in-memory db in sqlalchemy
+fingerprinter = fingerprinter_types[args.fingerprint_method](model, inmemory_db_url, args.fingerprinter_n)
 
 
 #for each message, compare it to the fingerprint
@@ -78,33 +84,5 @@ for msgi in range(case_count):
 	if match is not None:
 		results[match] += 1
 	result_logs[claimedicao].append(match)
-
-	# #if we have no previous fingerprint, then just save
-	# if claimedicao not in known_aircraft:
-	# 	##generate fingerprint
-	# 	##fp = fingerprint_model.predict(msg.reshape(1, 2400, 2))
-	# 	##known_aircraft[claimedicao] = fp
-	# 	##print("New aircraft {}, stored fingerprint".format(fp))
-	#
-	# 	known_aircraft[claimedicao] = msg
-	# 	##print("New aircraft {}, stored MESSAGE".format(claimedicao))
-	# 	result_logs[claimedicao] = []
-	# else:	#otherwise check the fingerprint
-	# 	msg_shaped = msg.reshape(1, msg.shape[0], msg.shape[1])
-	# 	ref_shaped = known_aircraft[claimedicao].reshape(1, constants.message_symbols * oversampling_factor, feature_count)
-	#
-	# 	compare_result = model.predict([msg_shaped, ref_shaped])
-	# 	match = compare_result.flatten()[0] > 0.5
-	# 	##print("Message for {} matches: {}".format(claimedicao, match))
-	# 	results[match] += 1
-	# 	result_logs[claimedicao].append(match)
-	# 	##if match:
-	# 	##	known_aircraft[claimedicao] = msg
-
-	#fpresult_first = fprinter_first.fingerprint_msg(msg, claimedicao)
-	#fpresult_bestn = fprinter_bestn.fingerprint_msg(msg, claimedicao)
-	#fpresult_centroid = fprinter_centroid.fingerprint_msg(msg, claimedicao)
-	#if fpresult_first is not None:# and not match:
-	#	print(f"Native: {match}, fprinter_first: {fpresult_first}, fprinter_best: {fpresult_bestn}, fprinter_centroid: {fpresult_centroid}")
 
 logging.info(results)

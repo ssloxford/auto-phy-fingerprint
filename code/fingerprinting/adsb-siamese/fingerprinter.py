@@ -11,46 +11,7 @@ import common.dataset as dataset
 import common.constants as constants
 from common.mq_utils import ZmqSub, ZmqPub
 
-from datetime import datetime
-import sqlalchemy as db
-from sqlalchemy.ext.declarative import declarative_base
-import pickle
-
-Base = declarative_base()
-
-class dbFingerprintMessage(Base):
-	__tablename__ = "fingerprintmsgs"
-	#id = db.Column(db.Integer, primary_key=True)
-	#icao = db.Column(db.String, index=True)
-	icao = db.Column(db.String, index=True, primary_key=True)
-	fp_msg = db.Column(db.LargeBinary)
-	msguuid = db.Column(db.String)
-	savetime_coarse = db.Column(db.Float)
-	savetime_coarse_dt = db.Column(db.DateTime)
-
-class FingerprintDB:
-	def __init__(self, session):
-		self.session = session
-
-	def __contains__(self, key):
-		return self.session.query(dbFingerprintMessage).filter(dbFingerprintMessage.icao == key).first() is not None
-
-	def __getitem__(self, key):
-		found = self.session.query(dbFingerprintMessage).filter(dbFingerprintMessage.icao == key).one()
-		return pickle.loads(found.fp_msg)
-
-	def __setitem__(self, key, value):
-		savetime = time.time()
-
-		fpm = dbFingerprintMessage()
-		fpm.icao = key
-		fpm.fp_msg = pickle.dumps(value)
-		fpm.msguuid = meta["uuid"]
-		fpm.savetime_coarse = savetime
-		fpm.savetime_coarse_dt = datetime.fromtimestamp(savetime)#.isoformat(sep=" ")
-
-		self.session.add(fpm)
-		self.session.commit()
+from common.fingerprinting import *
 
 #########################################
 
@@ -61,9 +22,15 @@ ap.add_argument("recv_connect_addr", type=str, help="Connect address of upstream
 ap.add_argument("send_bind_addr", type=str, help="Bind address for ZMQ PUB")
 ap.add_argument("model_file", type=str, help="Filename from which to load the model")
 ap.add_argument("database_filename", type=str, help="Filename for SQLite3 file in which to store fingerprints")
+ap.add_argument("fingerprint_method", type=str, help="Name of fingerprinting method to use")
+ap.add_argument("--fingerprinter_n", type=int, default=10, help="Number of entries to consider with fingerprinter")
+#parser.add_argument("--oversampling_factor", type=int, default=10, help="Oversampling factor used when creating the dataset")
+
 #TODO: topic to subscribe to
 #TODO: MQ choice
 args = ap.parse_args()
+
+assert args.fingerprint_method in fingerprinter_types
 
 #get the model ready
 logging.info("Loading Tensorflow")
@@ -72,9 +39,8 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1' #0 = all messages are logged (default b
 import tensorflow as tf
 from tensorflow.keras import layers, models
 
-#limit gpu usage
-tf_tweak.limit_gpu_memory_usage()
-
+tf_tweak.limit_gpu_memory_usage()		#limit use of gpu memory
+tf_tweak.disable_eager_execution()		#disable eager execution mode
 
 logging.info("Loading verification model")
 model = models.load_model(args.model_file)
@@ -83,14 +49,14 @@ model = models.load_model(args.model_file)
 logging.info("Extracting fingerprinting model")
 fingerprint_model = models.Model(inputs=model.layers[2].input, outputs=model.layers[2].output)
 
-logging.info(f"Creating/opening SQLite3 fingerprints file at {args.database_filename}")
-engine = db.create_engine(f"sqlite:///{args.database_filename}")
-connection = engine.connect()
-Base.metadata.create_all(engine)
-
-logging.info(f"Creating database session")
-Session = db.orm.sessionmaker(bind=engine)
-session = Session()
+# logging.info(f"Creating/opening SQLite3 fingerprints file at {args.database_filename}")
+# engine = db.create_engine(f"sqlite:///{args.database_filename}")
+# connection = engine.connect()
+# Base.metadata.create_all(engine)
+#
+# logging.info(f"Creating database session")
+# Session = db.orm.sessionmaker(bind=engine)
+# session = Session()
 
 logging.info("Initialising ZMQ")
 insocket = ZmqSub(args.recv_connect_addr)
@@ -103,9 +69,13 @@ oversampling_factor = 10			#i.e. 10x normal size (in this case, for ADS-B, 20 Ms
 waveform_len = 2400
 feature_count = 2
 
+logging.info(f"Creating {args.fingerprint_method} fingerprinter backed by DB at {args.database_filename}")
+#fingerprintdb = FingerprintDB(session)
+fingerprinter = fingerprinter_types[args.fingerprint_method](model, args.database_filename, args.fingerprinter_n)
+
 #keep track of aircraft we've seen and their last fingerprint(s)
 #known_aircraft = {}
-db_known_aircraft = FingerprintDB(session)
+#db_known_aircraft = FingerprintDB(session)
 results = { True: 0, False: 0}
 result_logs = {}
 
@@ -134,27 +104,17 @@ while True:
 	msg = dataset.maskDataset(msg.reshape(1, waveform_len, feature_count), oversampling_factor, "NOICAO").reshape(waveform_len, feature_count)
 
 	logging.debug("Tracking/verifying message")
-	verif_status = None
-	#if we have no previous fingerprint, then just save
-	#if claimedicao not in known_aircraft:
-	if claimedicao not in db_known_aircraft:
-		#known_aircraft[claimedicao] = msg									#TODO: this is a core issue -- there's no fingerprint being tracked per se, just an old message -- because the siamese network expects that -- we would need a modified network to accept a fingerprint on one branch
-		db_known_aircraft[claimedicao] = msg							##TODO: just writing the fingerprints out to test it, for now
-		logging.debug(f"New aircraft: {claimedicao}")
+	match = fingerprinter.fingerprint_msg(msg, claimedicao)
+	if claimedicao not in result_logs:
 		result_logs[claimedicao] = []
-		verif_status = "NEW"
-	else:	#otherwise check the fingerprint
-		#compare_result = model.predict([msg.reshape(1, waveform_len, feature_count), known_aircraft[claimedicao].reshape(1, waveform_len, feature_count)])
-		compare_result = model.predict([msg.reshape(1, waveform_len, feature_count), db_known_aircraft[claimedicao].reshape(1, waveform_len, feature_count)])
-		match = compare_result.flatten()[0]>0.5
-		logging.debug("Message for {} matches: {}".format(claimedicao, match))
-		verif_status = str(match)
+	if match is not None:
 		results[match] += 1
-		if claimedicao not in result_logs:
-			result_logs[claimedicao] = []
-		result_logs[claimedicao].append(match)
-		#if match:
-		#	known_aircraft[claimedicao] = msg
+	result_logs[claimedicao].append(match)
+
+	if match is not None:
+		verif_status = str(match)
+	else:
+		verif_status = None
 
 	logging.debug("Annotating verification and passing message downstream")
 	topic = b"ADS-B"

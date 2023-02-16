@@ -76,7 +76,8 @@ curdoc().on_session_destroyed(handle_session_close)
 template="""
             <div style="background:<%= 
                 (function colorfromint(){
-                    if(verif_count < verif_total ){return("firebrick")} else {return("green")}}()) %>; 
+                    if(verif_count == verif_total){return("green")} else if (verif_count > verif_total * 0.6) {return("gold")} else {return("firebrick")}
+                    }()) %>; 
                 color: black"> 
             <%= value %>
             </div>

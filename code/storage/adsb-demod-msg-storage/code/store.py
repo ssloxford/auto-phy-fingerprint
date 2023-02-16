@@ -51,8 +51,8 @@ if not "inds" in outf and "outds" not in outf and "meta_datahex" not in outf:
 	outf.create_dataset("inds", shape=(1, 2400, 2), maxshape=(None, 2400, 2), dtype=np.float32)
 	outf.create_dataset("outds", shape=(1, 1), maxshape=(None, 1), dtype="S6")
 	outf.create_dataset("meta_datahex", shape=(1, 1), maxshape=(None, 1), dtype="S28")		#28 characters as each byte is 2 hex chars
-	outf.create_dataset("meta_msgtime", shape=(1, 1), maxshape=(None, 1), dtype=np.float32)
-	outf.create_dataset("meta_storetime", shape=(1, 1), maxshape=(None, 1), dtype=np.float32)
+	outf.create_dataset("meta_msgtime", shape=(1, 1), maxshape=(None, 1), dtype=np.float64)
+	outf.create_dataset("meta_storetime", shape=(1, 1), maxshape=(None, 1), dtype=np.float64)
 	outf.create_dataset("meta_uuid", shape=(1, 1), maxshape=(None, 1), dtype="S36")
 	bursti = 0
 else:
